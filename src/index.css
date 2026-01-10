@@ -1,6 +1,5 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-3.  **Reinicia el servidor:** Ve a tu terminal, detén la aplicación (presiona `Ctrl + C`) y vuelve a escribir:
-```bash
-npm run dev
+
+/* Si tienes algo escrito aquí abajo que diga "Reinicia", bórralo o coméntalo */
