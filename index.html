@@ -1,1 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Icono de la aplicación -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3132/3132693.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Luzcecitas Eventos | Gestión</title>
+    
+    <!-- Fuente para que el diseño se vea limpio -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 1. El contenedor donde React "dibuja" la App -->
+    <div id="root"></div>
 
+    <!-- 2. La configuración de Firebase necesaria para App.jsx -->
+    <script>
+      // Estas variables deben existir para que App.jsx no de error
+      window.__firebase_config = JSON.stringify({
+        apiKey: "TU_API_KEY",
+        authDomain: "tu-proyecto.firebaseapp.com",
+        projectId: "tu-proyecto",
+        storageBucket: "tu-proyecto.appspot.com",
+        messagingSenderId: "12345",
+        appId: "1:12345:web:6789"
+      });
+      window.__app_id = "luzcecitas-app";
+    </script>
+
+    <!-- 3. El script que arranca todo el proyecto -->
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
