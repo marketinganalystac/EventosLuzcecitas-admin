@@ -2,12 +2,10 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <!-- Icono de la aplicación -->
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3132/3132693.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Luzcecitas Eventos | Gestión</title>
     
-    <!-- Fuente para que el diseño se vea limpio -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -21,37 +19,7 @@
     </style>
   </head>
   <body>
-    <!-- 1. El contenedor donde React "dibuja" la App -->
     <div id="root"></div>
-
-    <!-- 2. La configuración de Firebase necesaria para App.jsx -->
-    <script>
-      // Estas variables deben existir para que App.jsx no de error
-// src/firebase.js
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore"; // Ejemplo: para la base de datos
-import { getAuth } from "firebase/auth";           // Ejemplo: para usuarios
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCNGCfGuqiLI_EIoG98yguRZdbNcGyVDIw",
-  authDomain: "eventosluzcecitas-9fd22.firebaseapp.com",
-  projectId: "eventosluzcecitas-9fd22",
-  storageBucket: "eventosluzcecitas-9fd22.firebasestorage.app",
-  messagingSenderId: "41381954314",
-  appId: "1:41381954314:web:515148719c1e6fa43eb0f3",
-  measurementId: "G-2K5WD7P8CT"
-};
-
-// Inicializamos Firebase
-const app = initializeApp(firebaseConfig);
-
-// Exportamos los servicios para usarlos en otros archivos
-export const db = getFirestore(app);
-export const auth = getAuth(app);
-      window.__app_id = "luzcecitas-app";
-    </script>
-
-    <!-- 3. El script que arranca todo el proyecto -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
