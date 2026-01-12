@@ -52,12 +52,21 @@ import {
   serverTimestamp 
 } from "firebase/firestore";
 
-// --- CONFIGURACIÓN FIREBASE (NO EDITAR) ---
-const firebaseConfig = JSON.parse(__firebase_config);
+// --- CONFIGURACIÓN FIREBASE (CORREGIDA) ---
+const firebaseConfig = {
+  apiKey: "AIzaSyCNGCfGuqiLI_EIoG98yguRZdbNcGyVDIw",
+  authDomain: "eventosluzcecitas-9fd22.firebaseapp.com",
+  projectId: "eventosluzcecitas-9fd22",
+  storageBucket: "eventosluzcecitas-9fd22.firebasestorage.app",
+  messagingSenderId: "41381954314",
+  appId: "1:41381954314:web:515148719c1e6fa43eb0f3",
+  measurementId: "G-2K5WD7P8CT"
+};
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const appId = "luzcecitas-app"; // Nombre fijo para tu base de datos
 
 // --- LOGO CONFIG ---
 const LOGO_URL = "https://cdn-icons-png.flaticon.com/512/3132/3132693.png"; 
