@@ -183,7 +183,7 @@ const LoginScreen = () => {
   return (
     <div className="min-h-screen bg-[#1a103c] flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Background Video Layer */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+      <div className="hidden absolute top-0 left-0 w-full h-full overflow-hidden z-0">
         <video 
             src={LOGO_VIDEO_URL} 
             autoPlay 
