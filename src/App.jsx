@@ -156,6 +156,22 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  
+  // Estado para el movimiento del mouse (Efecto Parallax)
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      // Calculamos la posición normalizada para mover los elementos
+      // Multiplicamos por un factor (ej. 30) para definir el rango de movimiento en px
+      const x = (e.clientX / window.innerWidth - 0.5) * 40; 
+      const y = (e.clientY / window.innerHeight - 0.5) * 40;
+      setMousePos({ x, y });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -180,30 +196,47 @@ const LoginScreen = () => {
 
   return (
     <div className="min-h-screen bg-[#1a103c] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Animated Layer (Fireworks/Sparkles Effect) */}
+      {/* Background Animated Layer (Interactive Fireworks/Sparkles Effect) */}
       <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
         {/* CSS Animations definition */}
         <style>{`
            @keyframes float-slow { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, -30px); } }
-           @keyframes float-medium { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-20px, 20px) scale(1.1); } }
-           @keyframes glow-pulse { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.2); } }
+           @keyframes glow-pulse { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.1); } }
+           @keyframes glow-intense { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 0.9; transform: scale(1.05); } }
         `}</style>
         
         {/* Fondo base */}
         <div className="absolute inset-0 bg-[#1a103c]"></div>
 
-        {/* Orbes grandes difuminados (Ambiente) */}
-        <div className="absolute -top-[20%] -left-[10%] w-[600px] h-[600px] bg-purple-600/40 rounded-full blur-[120px] animate-[float-slow_15s_ease-in-out_infinite]"></div>
-        <div className="absolute top-[40%] -right-[10%] w-[500px] h-[500px] bg-rose-600/30 rounded-full blur-[120px] animate-[float-medium_12s_ease-in-out_infinite]"></div>
-        <div className="absolute -bottom-[20%] left-[20%] w-[600px] h-[600px] bg-indigo-800/40 rounded-full blur-[100px] animate-[float-slow_18s_ease-in-out_infinite]"></div>
-
-        {/* Destellos simulando fuegos artificiales lejanos */}
-        <div className="absolute top-[15%] left-[20%] w-4 h-4 bg-yellow-300 rounded-full blur-[8px] animate-[glow-pulse_3s_ease-in-out_infinite] shadow-[0_0_20px_rgba(253,224,71,0.6)]"></div>
-        <div className="absolute bottom-[30%] right-[25%] w-3 h-3 bg-rose-400 rounded-full blur-[6px] animate-[glow-pulse_4s_ease-in-out_infinite] shadow-[0_0_15px_rgba(251,113,133,0.6)]" style={{animationDelay: '1s'}}></div>
-        <div className="absolute top-[40%] left-[50%] w-2 h-2 bg-white rounded-full blur-[4px] animate-[glow-pulse_2s_ease-in-out_infinite] shadow-[0_0_10px_rgba(255,255,255,0.8)]" style={{animationDelay: '0.5s'}}></div>
+        {/* --- DESTELLOS INTERACTIVOS (Grandes y Reactivos al Mouse) --- */}
         
-        {/* Patrón sutil de estrellas */}
-        <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '40px 40px'}}></div>
+        {/* Destello 1: Dorado/Amarillo (Arriba Izquierda) - Se mueve opuesto al mouse */}
+        <div className="absolute top-[10%] left-[10%]" style={{ transform: `translate(${mousePos.x * -1}px, ${mousePos.y * -1}px)` }}>
+            <div className="w-[500px] h-[500px] bg-yellow-500/10 rounded-full blur-[90px] animate-[glow-pulse_5s_ease-in-out_infinite]"></div>
+        </div>
+        <div className="absolute top-[20%] left-[20%]" style={{ transform: `translate(${mousePos.x * -1.5}px, ${mousePos.y * -1.5}px)` }}>
+            <div className="w-40 h-40 bg-yellow-200/20 rounded-full blur-[40px] animate-[glow-intense_3s_ease-in-out_infinite]"></div>
+        </div>
+
+        {/* Destello 2: Rosa/Magenta (Abajo Derecha) - Se mueve con el mouse */}
+        <div className="absolute bottom-[10%] right-[10%]" style={{ transform: `translate(${mousePos.x}px, ${mousePos.y}px)` }}>
+             <div className="w-[600px] h-[600px] bg-rose-600/10 rounded-full blur-[100px] animate-[glow-pulse_6s_ease-in-out_infinite]"></div>
+        </div>
+        <div className="absolute bottom-[25%] right-[20%]" style={{ transform: `translate(${mousePos.x * 1.2}px, ${mousePos.y * 1.2}px)` }}>
+             <div className="w-64 h-64 bg-rose-400/20 rounded-full blur-[60px] animate-[glow-intense_4s_ease-in-out_infinite]"></div>
+        </div>
+
+        {/* Destello 3: Azul/Indigo (Centro-ish) - Movimiento sutil */}
+        <div className="absolute top-[40%] left-[50%] -translate-x-1/2" style={{ transform: `translate(calc(-50% + ${mousePos.x * 0.5}px), ${mousePos.y * 0.5}px)` }}>
+             <div className="w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[80px] animate-[glow-pulse_7s_ease-in-out_infinite]"></div>
+        </div>
+        
+        {/* Pequeños brillos extra (Estrellas fugaces estáticas pero pulsantes) */}
+        <div className="absolute top-[15%] right-[30%] w-2 h-2 bg-white rounded-full blur-[2px] animate-pulse"></div>
+        <div className="absolute bottom-[40%] left-[10%] w-3 h-3 bg-yellow-100 rounded-full blur-[3px] animate-pulse delay-700"></div>
+
+        {/* Patrón sutil de estrellas de fondo */}
+        <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '50px 50px'}}></div>
       </div>
 
       <div className="relative z-10 w-full max-w-sm animate-in fade-in zoom-in duration-500">
