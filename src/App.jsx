@@ -190,7 +190,7 @@ const LoginScreen = () => {
             loop 
             muted 
             playsInline 
-            className="absolute inset-0 w-full h-full object-cover opacity-60" 
+            className="absolute inset-0 w-full h-full object-cover opacity-200" 
         />
         <div className="absolute inset-0 bg-[#1a103c]/70 mix-blend-multiply"></div>
       </div>
