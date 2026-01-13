@@ -1266,7 +1266,7 @@ export default function App() {
           <div className="flex flex-col items-center gap-3 mb-2">
              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg shadow-purple-500/50 overflow-hidden p-1">
                 <img 
-                  src= public/Logo.png
+                  src= {LOGO_URL}
                   alt="Logo Luzcecitas" 
                   className="w-full h-full object-contain"
                 />
