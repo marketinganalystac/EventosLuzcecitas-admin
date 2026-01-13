@@ -73,7 +73,8 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'luzcecitas-app';
 
 // --- LOGO CONFIG ---
 // Ruta relativa a la carpeta public para la imagen
-const LOGO_URL = "/logo.png"; 
+// Actualizado al nuevo archivo subido por el usuario
+const LOGO_URL = "Logo.png"; 
 // Ruta relativa a la carpeta public para el video de fondo
 const LOGO_VIDEO_URL = "/intro.mp4"; 
 
@@ -304,6 +305,25 @@ export default function App() {
   const [editingClient, setEditingClient] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
   const [viewingOrderEvent, setViewingOrderEvent] = useState(null); 
+
+  // --- EFECTOS VISUALES (Favicon y Título) ---
+  useEffect(() => {
+    // 1. Configurar Favicon dinámicamente
+    const setFavicon = (url) => {
+      let link = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = url;
+    };
+    
+    setFavicon(LOGO_URL);
+
+    // 2. Configurar Título de la página
+    document.title = "Eventos Luzcecitas | Gestión";
+  }, []);
 
   // --- AUTH & DATA SYNC ---
 
