@@ -30,14 +30,14 @@ import {
   ExternalLink,
   MessageCircle,
   CheckSquare,
-  LogIn // Icono nuevo para login
+  LogIn 
 } from 'lucide-react';
 
 // Firebase Imports
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
-  signInWithEmailAndPassword, // IMPORTANTE: Nueva importación
+  signInWithEmailAndPassword, 
   signInWithCustomToken, 
   onAuthStateChanged,
   signOut
@@ -72,7 +72,8 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'luzcecitas-app';
 
 // --- LOGO CONFIG ---
-const LOGO_URL = "https://cdn-icons-png.flaticon.com/512/3132/3132693.png"; 
+// CAMBIO REALIZADO: Ruta relativa a la carpeta public
+const LOGO_URL = "/logo.png"; // Asegúrate de que el archivo 'logo.png' exista en tu carpeta /public
 
 // --- HELPERS ---
 const openWhatsApp = (phone) => {
@@ -148,7 +149,7 @@ const Select = ({ label, value, onChange, options, name }) => (
   </div>
 );
 
-// --- LOGIN SCREEN COMPONENT (MODIFICADO PARA EMAIL/PASS) ---
+// --- LOGIN SCREEN COMPONENT ---
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -208,7 +209,7 @@ const LoginScreen = () => {
                   type="email" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@eventosluzcecitas.com"
+                  placeholder="admin@luzcecitas.com"
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-purple-900/50 border border-purple-500/30 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent transition-all"
                   required
                 />
