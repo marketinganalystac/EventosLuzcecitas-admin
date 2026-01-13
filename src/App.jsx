@@ -72,9 +72,9 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'luzcecitas-app';
 
 // --- LOGO CONFIG ---
-// Ruta relativa a la carpeta public para la imagen (se usa en el sidebar)
+// Ruta relativa a la carpeta public para la imagen
 const LOGO_URL = "/logo.png"; 
-// Ruta relativa a la carpeta public para el video (se usa en el login)
+// Ruta relativa a la carpeta public para el video de fondo
 const LOGO_VIDEO_URL = "/intro.mp4"; 
 
 // --- HELPERS ---
@@ -181,46 +181,35 @@ const LoginScreen = () => {
 
   return (
     <div className="min-h-screen bg-[#1a103c] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Animations */}
+      {/* Background Video Layer */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-        <div className="absolute top-10 left-10 w-32 h-32 bg-purple-600 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
-        <div className="absolute top-10 right-10 w-32 h-32 bg-rose-600 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse delay-700"></div>
-        <div className="absolute -bottom-10 left-1/2 w-64 h-64 bg-yellow-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000"></div>
+        <video 
+            src={LOGO_VIDEO_URL} 
+            autoPlay 
+            loop 
+            muted 
+            playsInline 
+            className="absolute inset-0 w-full h-full object-cover opacity-60" 
+        />
+        <div className="absolute inset-0 bg-[#1a103c]/70 mix-blend-multiply"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-sm">
+      <div className="relative z-10 w-full max-w-sm animate-in fade-in zoom-in duration-500">
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl">
           <div className="mb-6 relative text-center">
-            <div className="w-20 h-20 bg-gradient-to-tr from-rose-400 to-purple-600 rounded-full flex items-center justify-center p-1 shadow-2xl mx-auto animate-bounce-slow mb-4">
-               <div className="w-full h-full bg-white/0 rounded-full overflow-hidden flex items-center justify-center">
-{/* Contenedor principal ajustado */}
-<div className="relative w-full h-screen overflow-hidden">
-  <video 
-    src={LOGO_VIDEO_URL} 
-    autoPlay 
-    loop 
-    muted 
-    playsInline 
-    className="absolute inset-0 w-full h-full object-cover" 
-  />
-  
-  {/* Capa de texto encima del video */}
-  <div className="relative z-10 flex items-center justify-center h-full bg-black/40">
-    <h1 className="text-center">
-      <span className="text-2xl text-white block">Plataforma de Gestión</span>
-      <span className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-rose-300">
-        Eventos Luzcecitas
-      </span>
-    </h1>
-  </div>
-</div>
+            {/* Logo Icon */}
+            <div className="w-24 h-24 bg-gradient-to-tr from-rose-400 to-purple-600 rounded-full flex items-center justify-center p-1 shadow-2xl mx-auto animate-bounce-slow mb-4">
+               <div className="w-full h-full bg-white rounded-full overflow-hidden flex items-center justify-center">
+                  <img src={LOGO_URL} alt="Logo" className="w-20 h-20 object-contain" />
+               </div>
+            </div>
             
-<h1 className="text-xl font-black text-white tracking-tight">
-  Plataforma de Gestión<br/>
-  <span className="text-5xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-rose-300">
-    Eventos Luzcecitas
-  </span>
-</h1>
+            <h1 className="text-xl font-black text-white tracking-tight">
+              Plataforma de Gestión<br/>
+              <span className="text-4xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-rose-300">
+                Eventos Luzcecitas
+              </span>
+            </h1>
           </div>
           
           <form onSubmit={handleLogin} className="space-y-4">
@@ -321,7 +310,6 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Solo intentamos custom token si el entorno lo provee, NO anónimo
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
         }
@@ -342,7 +330,6 @@ export default function App() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // user state will be set to null by onAuthStateChanged
     } catch (error) {
       console.error("Error al cerrar sesión", error);
     }
