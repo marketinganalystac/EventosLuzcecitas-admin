@@ -189,14 +189,14 @@ const LoginScreen = () => {
       <div className="relative z-10 w-full max-w-sm">
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl">
           <div className="mb-6 relative text-center">
-            <div className="w-24 h-24 bg-gradient-to-tr from-rose-400 to-purple-600 rounded-full flex items-center justify-center p-1 shadow-2xl mx-auto animate-bounce-slow mb-4">
+            <div className="w-100 h-100 bg-gradient/0-to-tr from-rose-400 to-purple-600 rounded-full flex items-center justify-center p-1 shadow-2xl mx-auto animate-bounce-slow mb-4">
                <div className="w-full h-full bg-white/0 rounded-full overflow-hidden flex items-center justify-center">
                  <img src={LOGO_URL} alt="Luzcecitas Logo" className="w-16 h-16 object-contain" />
                </div>
             </div>
             
             <h1 className="text-2xl font-black text-white tracking-tight">
-              Bienvenido a la Plataforma de Gestión<br/>
+              Plataforma de Gestión<br/>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-rose-300">Eventos Luzcecitas</span>
             </h1>
           </div>
