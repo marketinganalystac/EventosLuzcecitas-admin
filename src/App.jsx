@@ -29,14 +29,15 @@ import {
   Printer,
   ExternalLink,
   MessageCircle,
-  CheckSquare
+  CheckSquare,
+  LogIn // Icono nuevo para login
 } from 'lucide-react';
 
 // Firebase Imports
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
-  signInAnonymously, 
+  signInWithEmailAndPassword, // IMPORTANTE: Nueva importación
   signInWithCustomToken, 
   onAuthStateChanged,
   signOut
@@ -52,21 +53,23 @@ import {
   serverTimestamp 
 } from "firebase/firestore";
 
-// --- CONFIGURACIÓN FIREBASE (CORREGIDA) ---
-const firebaseConfig = {
-  apiKey: "AIzaSyCNGCfGuqiLI_EIoG98yguRZdbNcGyVDIw",
-  authDomain: "eventosluzcecitas-9fd22.firebaseapp.com",
-  projectId: "eventosluzcecitas-9fd22",
-  storageBucket: "eventosluzcecitas-9fd22.firebasestorage.app",
-  messagingSenderId: "41381954314",
-  appId: "1:41381954314:web:515148719c1e6fa43eb0f3",
-  measurementId: "G-2K5WD7P8CT"
-};
+// --- CONFIGURACIÓN FIREBASE (DINÁMICA) ---
+const firebaseConfig = typeof __firebase_config !== 'undefined' 
+  ? JSON.parse(__firebase_config) 
+  : {
+      apiKey: "AIzaSyCNGCfGuqiLI_EIoG98yguRZdbNcGyVDIw",
+      authDomain: "eventosluzcecitas-9fd22.firebaseapp.com",
+      projectId: "eventosluzcecitas-9fd22",
+      storageBucket: "eventosluzcecitas-9fd22.firebasestorage.app",
+      messagingSenderId: "41381954314",
+      appId: "1:41381954314:web:515148719c1e6fa43eb0f3",
+      measurementId: "G-2K5WD7P8CT"
+    };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = "luzcecitas-app"; // Nombre fijo para tu base de datos
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'luzcecitas-app';
 
 // --- LOGO CONFIG ---
 const LOGO_URL = "https://cdn-icons-png.flaticon.com/512/3132/3132693.png"; 
@@ -145,60 +148,127 @@ const Select = ({ label, value, onChange, options, name }) => (
   </div>
 );
 
-// --- LOGIN SCREEN COMPONENT ---
-const LoginScreen = ({ onLogin, loading }) => (
-  <div className="min-h-screen bg-[#1a103c] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-    <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-      <div className="absolute top-10 left-10 w-32 h-32 bg-purple-600 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
-      <div className="absolute top-10 right-10 w-32 h-32 bg-rose-600 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse delay-700"></div>
-      <div className="absolute -bottom-10 left-1/2 w-64 h-64 bg-yellow-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000"></div>
-    </div>
+// --- LOGIN SCREEN COMPONENT (MODIFICADO PARA EMAIL/PASS) ---
+const LoginScreen = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-    <div className="relative z-10 w-full max-w-md">
-      <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl text-center">
-        <div className="mb-8 relative inline-block">
-          <div className="w-32 h-32 bg-gradient-to-tr from-rose-400 to-purple-600 rounded-full flex items-center justify-center p-1 shadow-2xl mx-auto animate-bounce-slow">
-             <div className="w-full h-full bg-white rounded-full overflow-hidden flex items-center justify-center">
-               <img src={LOGO_URL} alt="Luzcecitas Logo" className="w-24 h-24 object-contain" />
-             </div>
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    setError('');
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // El onAuthStateChanged en App se encargará de redirigir
+    } catch (err) {
+      console.error("Error login:", err);
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+         setError('Correo o contraseña incorrectos.');
+      } else if (err.code === 'auth/too-many-requests') {
+         setError('Demasiados intentos. Intenta más tarde.');
+      } else {
+         setError('Error al iniciar sesión. Verifica tu conexión.');
+      }
+      setIsLoggingIn(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#1a103c] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Animations */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+        <div className="absolute top-10 left-10 w-32 h-32 bg-purple-600 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
+        <div className="absolute top-10 right-10 w-32 h-32 bg-rose-600 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse delay-700"></div>
+        <div className="absolute -bottom-10 left-1/2 w-64 h-64 bg-yellow-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000"></div>
+      </div>
+
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl">
+          <div className="mb-6 relative text-center">
+            <div className="w-24 h-24 bg-gradient-to-tr from-rose-400 to-purple-600 rounded-full flex items-center justify-center p-1 shadow-2xl mx-auto animate-bounce-slow mb-4">
+               <div className="w-full h-full bg-white rounded-full overflow-hidden flex items-center justify-center">
+                 <img src={LOGO_URL} alt="Luzcecitas Logo" className="w-16 h-16 object-contain" />
+               </div>
+            </div>
+            
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Bienvenido a <br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-rose-300">Luzcecitas</span>
+            </h1>
           </div>
-          <Sparkles className="absolute -top-2 -right-2 w-8 h-8 text-yellow-400 animate-spin-slow" />
-        </div>
-        
-        <h1 className="text-4xl font-black text-white mb-2 tracking-tight">
-          Eventos <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-rose-300">Luzcecitas</span>
-        </h1>
-        <p className="text-purple-200 mb-8 font-medium">Gestiona tu magia, organiza tus fiestas.</p>
-        
-        <button 
-          onClick={onLogin}
-          disabled={loading}
-          className="w-full group relative px-8 py-4 bg-gradient-to-r from-rose-500 to-purple-600 rounded-2xl font-bold text-white text-lg shadow-lg shadow-purple-900/50 hover:shadow-rose-900/50 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-white/20 group-hover:translate-x-full transition-transform duration-500 ease-in-out -skew-x-12"></div>
-          <span className="relative flex items-center justify-center gap-3">
-            {loading ? 'Iniciando...' : (
-              <>
-                Ingresar al Sistema <ChevronRight className="w-5 h-5" />
-              </>
-            )}
-          </span>
-        </button>
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-purple-200 text-xs font-bold mb-1 ml-1">CORREO ELECTRÓNICO</label>
+              <div className="relative">
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@luzcecitas.com"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-purple-900/50 border border-purple-500/30 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent transition-all"
+                  required
+                />
+                <Mail className="absolute left-3 top-3.5 w-5 h-5 text-purple-300" />
+              </div>
+            </div>
 
-        <p className="mt-6 text-xs text-purple-300/60">
-          V.1.1 • Sistema de Gestión de Eventos
-        </p>
+            <div>
+              <label className="block text-purple-200 text-xs font-bold mb-1 ml-1">CONTRASEÑA</label>
+              <div className="relative">
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-purple-900/50 border border-purple-500/30 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent transition-all"
+                  required
+                />
+                <Lock className="absolute left-3 top-3.5 w-5 h-5 text-purple-300" />
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-200 flex-shrink-0" />
+                <p className="text-xs text-red-100 font-medium">{error}</p>
+              </div>
+            )}
+
+            <button 
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full group relative px-8 py-3 bg-gradient-to-r from-rose-500 to-purple-600 rounded-xl font-bold text-white text-base shadow-lg shadow-purple-900/50 hover:shadow-rose-900/50 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+            >
+              <span className="relative flex items-center justify-center gap-2">
+                {isLoggingIn ? (
+                  <>Verificando... <Sparkles className="w-4 h-4 animate-pulse" /></>
+                ) : (
+                  <>
+                    Iniciar Sesión <LogIn className="w-4 h-4" />
+                  </>
+                )}
+              </span>
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-[10px] text-purple-300/40">
+             Acceso restringido • Sistema de Gestión V.1.3
+          </p>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // --- MAIN APP COMPONENT ---
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [hasEntered, setHasEntered] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -213,7 +283,7 @@ export default function App() {
   const [showClientModal, setShowClientModal] = useState(false);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
-  const [showOrderModal, setShowOrderModal] = useState(false); // New: Order Modal
+  const [showOrderModal, setShowOrderModal] = useState(false); 
   const [urgentAlerts, setUrgentAlerts] = useState([]); 
   const [showUrgentModal, setShowUrgentModal] = useState(false);
   
@@ -221,11 +291,24 @@ export default function App() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [editingClient, setEditingClient] = useState(null);
   const [editingItem, setEditingItem] = useState(null);
-  const [viewingOrderEvent, setViewingOrderEvent] = useState(null); // New: For Order View
+  const [viewingOrderEvent, setViewingOrderEvent] = useState(null); 
 
   // --- AUTH & DATA SYNC ---
 
   useEffect(() => {
+    const initAuth = async () => {
+      try {
+        // Solo intentamos custom token si el entorno lo provee, NO anónimo
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        }
+      } catch (error) {
+        console.error("Error en autenticación inicial:", error);
+      }
+    };
+
+    initAuth();
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
@@ -233,42 +316,37 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-const handleLogin = async () => {
-    setLoading(true);
+  const handleLogout = async () => {
     try {
-      // Intentamos iniciar sesión de forma anónima para entrar rápido
-      await signInAnonymously(auth);
-      setHasEntered(true);
+      await signOut(auth);
+      // user state will be set to null by onAuthStateChanged
     } catch (error) {
-      console.error("Error al ingresar:", error);
-      // Forzamos la entrada aunque falle Firebase para que puedas ver el diseño
-      setHasEntered(true); 
-    } finally {
-      setLoading(false);
+      console.error("Error al cerrar sesión", error);
     }
   };
 
   useEffect(() => {
     if (!user) return;
 
+    // Use dynamic appId for paths
     const basePath = ['artifacts', appId, 'users', user.uid];
     
     const unsubClients = onSnapshot(collection(db, ...basePath, 'clients'), (snapshot) => {
       setClients(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    }, (error) => console.error("Error fetching clients:", error));
 
     const unsubEvents = onSnapshot(collection(db, ...basePath, 'events'), (snapshot) => {
       const eventsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setEvents(eventsData);
-    });
+    }, (error) => console.error("Error fetching events:", error));
 
     const unsubTransactions = onSnapshot(collection(db, ...basePath, 'transactions'), (snapshot) => {
       setTransactions(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    }, (error) => console.error("Error fetching transactions:", error));
 
     const unsubInventory = onSnapshot(collection(db, ...basePath, 'inventory'), (snapshot) => {
       setInventory(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
+    }, (error) => console.error("Error fetching inventory:", error));
 
     return () => {
       unsubClients();
@@ -280,7 +358,7 @@ const handleLogin = async () => {
 
   // --- URGENT ALERTS CHECKER ---
   useEffect(() => {
-    if (events.length > 0 && hasEntered) {
+    if (events.length > 0 && user) {
       const today = new Date();
       today.setHours(0,0,0,0);
       
@@ -301,7 +379,7 @@ const handleLogin = async () => {
         setShowUrgentModal(true);
       }
     }
-  }, [events, hasEntered]);
+  }, [events, user]);
 
 
   // --- DERIVED DATA ---
@@ -349,6 +427,7 @@ const handleLogin = async () => {
 
   const handleSaveInventory = async (e) => {
     e.preventDefault();
+    if (!user) return;
     const formData = new FormData(e.target);
     const data = {
       name: formData.get('name'),
@@ -374,6 +453,7 @@ const handleLogin = async () => {
 
   const handleSaveClient = async (e) => {
     e.preventDefault();
+    if (!user) return;
     const formData = new FormData(e.target);
     const data = {
       name: formData.get('name'),
@@ -399,6 +479,7 @@ const handleLogin = async () => {
 
   const handleSaveEvent = async (e) => {
     e.preventDefault();
+    if (!user) return;
     const formData = new FormData(e.target);
     const clientId = formData.get('clientId');
     const selectedClient = clients.find(c => c.id === clientId);
@@ -459,6 +540,7 @@ const handleLogin = async () => {
 
   const handleSaveTransaction = async (e) => {
     e.preventDefault();
+    if (!user) return;
     const formData = new FormData(e.target);
     const data = {
       type: formData.get('type'),
@@ -478,6 +560,7 @@ const handleLogin = async () => {
   };
 
   const deleteItem = async (collectionName, id) => {
+    if (!user) return;
     if (confirm('¿Estás seguro de eliminar este registro?')) {
       await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, collectionName, id));
     }
@@ -1170,8 +1253,8 @@ const handleLogin = async () => {
   };
 
 
-  if (!hasEntered) {
-    return <LoginScreen onLogin={handleLogin} loading={loading && user} />;
+  if (!user) {
+    return <LoginScreen />;
   }
 
   return (
@@ -1217,7 +1300,7 @@ const handleLogin = async () => {
         </nav>
 
         <div className="p-6 bg-gradient-to-t from-purple-900/80 to-transparent">
-           <button onClick={() => { setHasEntered(false); }} className="w-full py-2 flex items-center justify-center gap-2 text-purple-300 hover:text-white text-sm transition-colors">
+           <button onClick={handleLogout} className="w-full py-2 flex items-center justify-center gap-2 text-purple-300 hover:text-white text-sm transition-colors">
               <Lock className="w-3 h-3"/> Cerrar Sesión
            </button>
         </div>
@@ -1251,7 +1334,7 @@ const handleLogin = async () => {
               </button>
             ))}
              <button 
-                onClick={() => { setHasEntered(false); setIsMobileMenuOpen(false); }}
+                onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
                 className="w-full text-left px-4 py-3 rounded-lg capitalize font-medium text-red-300 bg-red-900/20 mt-2"
               >
                 Cerrar Sesión
