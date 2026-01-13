@@ -75,8 +75,6 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'luzcecitas-app';
 // Ruta relativa a la carpeta public para la imagen
 // Actualizado al nuevo archivo subido por el usuario
 const LOGO_URL = "Logo.png"; 
-// Ruta relativa a la carpeta public para el video de fondo
-const LOGO_VIDEO_URL = "/intro.mp4"; 
 
 // --- HELPERS ---
 const openWhatsApp = (phone) => {
@@ -182,17 +180,30 @@ const LoginScreen = () => {
 
   return (
     <div className="min-h-screen bg-[#1a103c] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Video Layer */}
-      <div className="hidden absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-        <video 
-            src={LOGO_VIDEO_URL} 
-            autoPlay 
-            loop 
-            muted 
-            playsInline 
-            className="absolute inset-0 w-full h-full object-cover opacity-200" 
-        />
-        <div className="absolute inset-0 bg-[#1a103c]/70 mix-blend-multiply"></div>
+      {/* Background Animated Layer (Fireworks/Sparkles Effect) */}
+      <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
+        {/* CSS Animations definition */}
+        <style>{`
+           @keyframes float-slow { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, -30px); } }
+           @keyframes float-medium { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-20px, 20px) scale(1.1); } }
+           @keyframes glow-pulse { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.2); } }
+        `}</style>
+        
+        {/* Fondo base */}
+        <div className="absolute inset-0 bg-[#1a103c]"></div>
+
+        {/* Orbes grandes difuminados (Ambiente) */}
+        <div className="absolute -top-[20%] -left-[10%] w-[600px] h-[600px] bg-purple-600/40 rounded-full blur-[120px] animate-[float-slow_15s_ease-in-out_infinite]"></div>
+        <div className="absolute top-[40%] -right-[10%] w-[500px] h-[500px] bg-rose-600/30 rounded-full blur-[120px] animate-[float-medium_12s_ease-in-out_infinite]"></div>
+        <div className="absolute -bottom-[20%] left-[20%] w-[600px] h-[600px] bg-indigo-800/40 rounded-full blur-[100px] animate-[float-slow_18s_ease-in-out_infinite]"></div>
+
+        {/* Destellos simulando fuegos artificiales lejanos */}
+        <div className="absolute top-[15%] left-[20%] w-4 h-4 bg-yellow-300 rounded-full blur-[8px] animate-[glow-pulse_3s_ease-in-out_infinite] shadow-[0_0_20px_rgba(253,224,71,0.6)]"></div>
+        <div className="absolute bottom-[30%] right-[25%] w-3 h-3 bg-rose-400 rounded-full blur-[6px] animate-[glow-pulse_4s_ease-in-out_infinite] shadow-[0_0_15px_rgba(251,113,133,0.6)]" style={{animationDelay: '1s'}}></div>
+        <div className="absolute top-[40%] left-[50%] w-2 h-2 bg-white rounded-full blur-[4px] animate-[glow-pulse_2s_ease-in-out_infinite] shadow-[0_0_10px_rgba(255,255,255,0.8)]" style={{animationDelay: '0.5s'}}></div>
+        
+        {/* Patrón sutil de estrellas */}
+        <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '40px 40px'}}></div>
       </div>
 
       <div className="relative z-10 w-full max-w-sm animate-in fade-in zoom-in duration-500">
