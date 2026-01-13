@@ -191,26 +191,36 @@ const LoginScreen = () => {
       <div className="relative z-10 w-full max-w-sm">
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl">
           <div className="mb-6 relative text-center">
-            <div className="w-20 h-20 bg-gradient/0-to-tr from-rose-400 to-purple-600 rounded-full flex items-center justify-center p-1 shadow-2xl mx-auto animate-bounce-slow mb-4">
+            <div className="w-20 h-20 bg-gradient-to-tr from-rose-400 to-purple-600 rounded-full flex items-center justify-center p-1 shadow-2xl mx-auto animate-bounce-slow mb-4">
                <div className="w-full h-full bg-white/0 rounded-full overflow-hidden flex items-center justify-center">
-{/* VIDEO BACKGROUND LOGO */}
-                 <video 
-                   src={LOGO_VIDEO_URL} 
-                   autoPlay 
-                   loop 
-                   muted 
-                   playsInline 
-                   className="w-full h-full object-cover" 
-                 />
-                 {/* Fallback de imagen por si el video falla o carga lento (opcional, cubierto por el video) */}
-                 {/* <img src={LOGO_URL} alt="Logo" className="absolute inset-0 w-full h-full object-contain opacity-60" /> */}
-               </div>
-            </div>
+{/* Contenedor principal ajustado */}
+<div className="relative w-full h-screen overflow-hidden">
+  <video 
+    src={LOGO_VIDEO_URL} 
+    autoPlay 
+    loop 
+    muted 
+    playsInline 
+    className="absolute inset-0 w-full h-full object-cover" 
+  />
+  
+  {/* Capa de texto encima del video */}
+  <div className="relative z-10 flex items-center justify-center h-full bg-black/40">
+    <h1 className="text-center">
+      <span className="text-2xl text-white block">Plataforma de Gestión</span>
+      <span className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-rose-300">
+        Eventos Luzcecitas
+      </span>
+    </h1>
+  </div>
+</div>
             
-            <h1 className="text-2xl font-black text-white tracking-tight">
-              Plataforma de Gestión<br/>
-              <span className="text-1x1-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-rose-300">Eventos Luzcecitas</span>
-            </h1>
+<h1 className="text-xl font-black text-white tracking-tight">
+  Plataforma de Gestión<br/>
+  <span className="text-5xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-rose-300">
+    Eventos Luzcecitas
+  </span>
+</h1>
           </div>
           
           <form onSubmit={handleLogin} className="space-y-4">
