@@ -203,7 +203,7 @@ const LoginScreen = () => {
                    className="w-full h-full object-cover" 
                  />
                  {/* Fallback de imagen por si el video falla o carga lento (opcional, cubierto por el video) */}
-                 {/* <img src={LOGO_URL} alt="Logo" className="absolute inset-0 w-full h-full object-contain opacity-0" /> */}
+                 {/* <img src={LOGO_URL} alt="Logo" className="absolute inset-0 w-full h-full object-contain opacity-60" /> */}
                </div>
             </div>
             
@@ -269,7 +269,7 @@ const LoginScreen = () => {
           </form>
 
           <p className="mt-6 text-center text-[10px] text-purple-300/40">
-             Acceso restringido • Sistema de Gestión V.1.3
+             Acceso restringido • Sistema de Gestión V.1.0
           </p>
         </div>
       </div>
