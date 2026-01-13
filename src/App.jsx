@@ -73,7 +73,7 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'luzcecitas-app';
 
 // --- LOGO CONFIG ---
 // CAMBIO REALIZADO: Ruta relativa a la carpeta public
-const LOGO_URL = "public/Logo.png"; // Asegúrate de que el archivo 'logo.png' exista en tu carpeta /public
+const LOGO_URL = "/Logo.png"; // Asegúrate de que el archivo 'logo.png' exista en tu carpeta /public
 
 // --- HELPERS ---
 const openWhatsApp = (phone) => {
