@@ -208,7 +208,7 @@ const LoginScreen = () => {
                   type="email" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@luzcecitas.com"
+                  placeholder="admin@eventosluzcecitas.com"
                   className="w-full pl-10 pr-4 py-3 rounded-xl bg-purple-900/50 border border-purple-500/30 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-transparent transition-all"
                   required
                 />
