@@ -72,8 +72,10 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'luzcecitas-app';
 
 // --- LOGO CONFIG ---
-// CAMBIO REALIZADO: Ruta relativa a la carpeta public
-const LOGO_URL = "/Logo.png"; // Asegúrate de que el archivo 'logo.png' exista en tu carpeta /public
+// Ruta relativa a la carpeta public para la imagen (se usa en el sidebar)
+const LOGO_URL = "/logo.png"; 
+// Ruta relativa a la carpeta public para el video (se usa en el login)
+const LOGO_VIDEO_URL = "/intro.mp4"; 
 
 // --- HELPERS ---
 const openWhatsApp = (phone) => {
@@ -191,7 +193,17 @@ const LoginScreen = () => {
           <div className="mb-6 relative text-center">
             <div className="w-20 h-20 bg-gradient/0-to-tr from-rose-400 to-purple-600 rounded-full flex items-center justify-center p-1 shadow-2xl mx-auto animate-bounce-slow mb-4">
                <div className="w-full h-full bg-white/0 rounded-full overflow-hidden flex items-center justify-center">
-                 <img src={LOGO_URL} alt="Luzcecitas Logo" className="w-100 h-100 object-contain" />
+{/* VIDEO BACKGROUND LOGO */}
+                 <video 
+                   src={LOGO_VIDEO_URL} 
+                   autoPlay 
+                   loop 
+                   muted 
+                   playsInline 
+                   className="w-full h-full object-cover" 
+                 />
+                 {/* Fallback de imagen por si el video falla o carga lento (opcional, cubierto por el video) */}
+                 {/* <img src={LOGO_URL} alt="Logo" className="absolute inset-0 w-full h-full object-contain opacity-0" /> */}
                </div>
             </div>
             
