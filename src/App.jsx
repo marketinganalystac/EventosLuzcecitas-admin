@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Calendar as CalendarIcon, 
   Users, 
@@ -72,8 +72,6 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'luzcecitas-app';
 
 // --- LOGO CONFIG ---
-// Ruta relativa a la carpeta public para la imagen
-// Actualizado al nuevo archivo subido por el usuario
 const LOGO_URL = "Logo.png"; 
 
 // --- HELPERS ---
@@ -150,6 +148,157 @@ const Select = ({ label, value, onChange, options, name }) => (
   </div>
 );
 
+// --- COMPONENTE FONDO DE FUEGOS ARTIFICIALES (Canvas Premium) ---
+const FireworksBackground = () => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    let width, height;
+    let particles = [];
+    let animationId;
+
+    // Paleta de colores de la marca (Morado, Rosa, Dorado, Cian)
+    const brandColors = [
+      { h: 270, s: 100, l: 60 }, // Morado Brillante
+      { h: 330, s: 100, l: 60 }, // Rosa Neón
+      { h: 45, s: 100, l: 60 },  // Dorado
+      { h: 190, s: 100, l: 60 }  // Cian suave
+    ];
+
+    const resize = () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+    
+    window.addEventListener('resize', resize);
+    resize();
+
+    class Particle {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        
+        // Velocidad más suave
+        const angle = Math.random() * Math.PI * 2;
+        const velocity = Math.random() * 4 + 1; // Menos explosivo, más elegante
+        
+        this.vx = Math.cos(angle) * velocity;
+        this.vy = Math.sin(angle) * velocity;
+        
+        this.friction = 0.96;
+        this.gravity = 0.05; // Gravedad reducida para efecto "flotante"
+        
+        // Selección de color aleatorio de la marca
+        const color = brandColors[Math.floor(Math.random() * brandColors.length)];
+        this.hue = color.h + (Math.random() * 20 - 10); // Variación ligera
+        this.sat = color.s;
+        this.light = color.l;
+        
+        this.alpha = 1;
+        this.decay = Math.random() * 0.015 + 0.005;
+        this.size = Math.random() * 3 + 1; // Partículas redondas
+      }
+
+      update() {
+        this.vx *= this.friction;
+        this.vy *= this.friction;
+        this.vy += this.gravity;
+        
+        this.x += this.vx;
+        this.y += this.vy;
+        
+        this.alpha -= this.decay;
+      }
+
+      draw() {
+        if (this.alpha <= 0) return;
+
+        ctx.beginPath();
+        // Dibujar círculos en lugar de líneas para aspecto "Premium"
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${this.hue}, ${this.sat}%, ${this.light}%, ${this.alpha})`;
+        
+        // Efecto Glow instantáneo
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = `hsla(${this.hue}, ${this.sat}%, ${this.light}%, ${this.alpha})`;
+        
+        ctx.fill();
+        
+        // Reset shadow para rendimiento si es necesario, pero aquí se ve bien
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    const createExplosion = (x, y, isBig = false) => {
+      let count = isBig ? 60 : 15;
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle(x, y));
+      }
+    };
+
+    const loop = () => {
+      // TRUCO DE ESTELA TRANSPARENTE:
+      // En lugar de pintar un fondo negro semi-transparente,
+      // usamos 'destination-out' para borrar suavemente el canvas,
+      // revelando el gradiente CSS que está detrás.
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; // Controla la longitud de la estela
+      ctx.fillRect(0, 0, width, height);
+
+      // Cambiamos a 'lighter' para que las partículas brillen al superponerse (efecto mágico)
+      ctx.globalCompositeOperation = 'lighter';
+
+      let i = particles.length;
+      while (i--) {
+        const p = particles[i];
+        p.update();
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+        } else {
+          p.draw();
+        }
+      }
+      
+      // Restaurar modo normal por si acaso
+      ctx.globalCompositeOperation = 'source-over';
+      
+      animationId = requestAnimationFrame(loop);
+    };
+
+    const handleInteraction = (e) => {
+      const x = e.touches ? e.touches[0].clientX : e.clientX;
+      const y = e.touches ? e.touches[0].clientY : e.clientY;
+      createExplosion(x, y, e.type === 'mousedown' || e.type === 'touchstart');
+    };
+
+    window.addEventListener('mousemove', handleInteraction);
+    window.addEventListener('mousedown', handleInteraction);
+    window.addEventListener('touchstart', handleInteraction, { passive: false });
+    // Lanzar fuegos artificiales aleatorios al inicio para dar vida
+    setTimeout(() => createExplosion(width/2, height/2, true), 500);
+
+    loop();
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', handleInteraction);
+      window.removeEventListener('mousedown', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+      cancelAnimationFrame(animationId);
+    };
+  }, []);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      className="fixed inset-0 w-full h-full z-0 pointer-events-auto mix-blend-screen"
+    />
+  );
+};
+
 // --- LOGIN SCREEN COMPONENT ---
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -157,22 +306,6 @@ const LoginScreen = () => {
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
-  // Estado para el movimiento del mouse (Efecto Parallax)
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      // Calculamos la posición normalizada para mover los elementos
-      // Multiplicamos por un factor (ej. 30) para definir el rango de movimiento en px
-      const x = (e.clientX / window.innerWidth - 0.5) * 40; 
-      const y = (e.clientY / window.innerHeight - 0.5) * 40;
-      setMousePos({ x, y });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoggingIn(true);
@@ -180,7 +313,6 @@ const LoginScreen = () => {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // El onAuthStateChanged en App se encargará de redirigir
     } catch (err) {
       console.error("Error login:", err);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
@@ -195,48 +327,18 @@ const LoginScreen = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#1a103c] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Animated Layer (Interactive Fireworks/Sparkles Effect) */}
-      <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
-        {/* CSS Animations definition */}
-        <style>{`
-           @keyframes float-slow { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, -30px); } }
-           @keyframes glow-pulse { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.1); } }
-           @keyframes glow-intense { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 0.9; transform: scale(1.05); } }
-        `}</style>
-        
-        {/* Fondo base */}
-        <div className="absolute inset-0 bg-[#1a103c]"></div>
+    // CAMBIO AQUI: Fondo con Gradiente Premium de la marca
+    <div className="min-h-screen bg-gradient-to-br from-[#1a103c] via-[#2e1a47] to-[#0a0514] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      
+      {/* Fondo de Fuegos Artificiales (Sobre el gradiente) */}
+      <FireworksBackground />
 
-        {/* --- DESTELLOS INTERACTIVOS (Grandes y Reactivos al Mouse) --- */}
-        
-        {/* Destello 1: Dorado/Amarillo (Arriba Izquierda) - Se mueve opuesto al mouse */}
-        <div className="absolute top-[10%] left-[10%]" style={{ transform: `translate(${mousePos.x * -1}px, ${mousePos.y * -1}px)` }}>
-            <div className="w-[500px] h-[500px] bg-yellow-500/10 rounded-full blur-[90px] animate-[glow-pulse_5s_ease-in-out_infinite]"></div>
-        </div>
-        <div className="absolute top-[20%] left-[20%]" style={{ transform: `translate(${mousePos.x * -1.5}px, ${mousePos.y * -1.5}px)` }}>
-            <div className="w-40 h-40 bg-yellow-200/20 rounded-full blur-[40px] animate-[glow-intense_3s_ease-in-out_infinite]"></div>
-        </div>
-
-        {/* Destello 2: Rosa/Magenta (Abajo Derecha) - Se mueve con el mouse */}
-        <div className="absolute bottom-[10%] right-[10%]" style={{ transform: `translate(${mousePos.x}px, ${mousePos.y}px)` }}>
-             <div className="w-[600px] h-[600px] bg-rose-600/10 rounded-full blur-[100px] animate-[glow-pulse_6s_ease-in-out_infinite]"></div>
-        </div>
-        <div className="absolute bottom-[25%] right-[20%]" style={{ transform: `translate(${mousePos.x * 1.2}px, ${mousePos.y * 1.2}px)` }}>
-             <div className="w-64 h-64 bg-rose-400/20 rounded-full blur-[60px] animate-[glow-intense_4s_ease-in-out_infinite]"></div>
-        </div>
-
-        {/* Destello 3: Azul/Indigo (Centro-ish) - Movimiento sutil */}
-        <div className="absolute top-[40%] left-[50%] -translate-x-1/2" style={{ transform: `translate(calc(-50% + ${mousePos.x * 0.5}px), ${mousePos.y * 0.5}px)` }}>
-             <div className="w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[80px] animate-[glow-pulse_7s_ease-in-out_infinite]"></div>
-        </div>
-        
-        {/* Pequeños brillos extra (Estrellas fugaces estáticas pero pulsantes) */}
-        <div className="absolute top-[15%] right-[30%] w-2 h-2 bg-white rounded-full blur-[2px] animate-pulse"></div>
-        <div className="absolute bottom-[40%] left-[10%] w-3 h-3 bg-yellow-100 rounded-full blur-[3px] animate-pulse delay-700"></div>
-
-        {/* Patrón sutil de estrellas de fondo */}
-        <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '50px 50px'}}></div>
+      {/* Título Estilizado Celestial */}
+      <div className="absolute top-8 left-8 z-10 pointer-events-none hidden md:block">
+        <h1 className="m-0 font-light tracking-[4px] uppercase text-2xl text-white/90 drop-shadow-md">
+          Celestial Spark
+        </h1>
+        <p className="text-purple-200/60 text-sm mt-1">Desliza para pintar el cielo</p>
       </div>
 
       <div className="relative z-10 w-full max-w-sm animate-in fade-in zoom-in duration-500">
