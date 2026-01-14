@@ -31,7 +31,9 @@ import {
   MessageCircle,
   CheckSquare,
   LogIn,
-  Navigation // Importamos un ícono más específico para navegación si está disponible, sino usamos ExternalLink
+  UserPlus,
+  Search,
+  ArrowRightCircle
 } from 'lucide-react';
 
 // Firebase Imports
@@ -84,8 +86,22 @@ const openWhatsApp = (phone) => {
 
 const openMaps = (address) => {
   if (!address) return;
-  // Usamos google maps search query que mostrará el pin y la opción de "Cómo llegar" ahí mismo
   window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank');
+};
+
+// Helper para fechas locales (Evita error de día -1 por timezone)
+const getLocalDate = (dateString) => {
+  if (!dateString) return new Date();
+  const [y, m, d] = dateString.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+
+// Helper para obtener string de fecha local HOY para inputs (YYYY-MM-DD)
+const getTodayString = () => {
+    const d = new Date();
+    const offset = d.getTimezoneOffset() * 60000;
+    const localDate = new Date(d.getTime() - offset);
+    return localDate.toISOString().split('T')[0];
 };
 
 // --- UI COMPONENTS ---
@@ -117,31 +133,22 @@ const Button = ({ onClick, children, variant = "primary", className = "", type =
   );
 };
 
-const Input = ({ label, value, onChange, type = "text", placeholder, required = false, name, min, max, className = "" }) => (
+const Input = ({ label, className = "", ...props }) => (
   <div className={`mb-4 ${className}`}>
     <label className="block text-sm font-bold text-purple-900 mb-1">{label}</label>
     <input
-      type={type}
-      name={name}
-      value={value}
-      onChange={onChange}
-      required={required}
-      min={min}
-      max={max}
-      placeholder={placeholder}
       className="w-full px-4 py-2 border-2 border-purple-100 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-200 transition-all bg-purple-50/30"
+      {...props}
     />
   </div>
 );
 
-const Select = ({ label, value, onChange, options, name }) => (
-  <div className="mb-4">
+const Select = ({ label, options, className = "", ...props }) => (
+  <div className={`mb-4 ${className}`}>
     <label className="block text-sm font-bold text-purple-900 mb-1">{label}</label>
     <select
-      name={name}
-      value={value}
-      onChange={onChange}
       className="w-full px-4 py-2 border-2 border-purple-100 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-200 bg-white transition-all"
+      {...props}
     >
       {options.map(opt => (
         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -150,7 +157,7 @@ const Select = ({ label, value, onChange, options, name }) => (
   </div>
 );
 
-// --- COMPONENTE FONDO DE FUEGOS ARTIFICIALES (Canvas Premium) ---
+// --- COMPONENTE FONDO DE FUEGOS ARTIFICIALES ---
 const FireworksBackground = () => {
   const canvasRef = useRef(null);
 
@@ -162,12 +169,11 @@ const FireworksBackground = () => {
     let particles = [];
     let animationId;
 
-    // Paleta de colores de la marca (Morado, Rosa, Dorado, Cian)
     const brandColors = [
-      { h: 270, s: 100, l: 60 }, // Morado Brillante
-      { h: 330, s: 100, l: 60 }, // Rosa Neón
-      { h: 45, s: 100, l: 60 },  // Dorado
-      { h: 190, s: 100, l: 60 }  // Cian suave
+      { h: 270, s: 100, l: 60 },
+      { h: 330, s: 100, l: 60 },
+      { h: 45, s: 100, l: 60 },
+      { h: 190, s: 100, l: 60 }
     ];
 
     const resize = () => {
@@ -182,53 +188,36 @@ const FireworksBackground = () => {
       constructor(x, y) {
         this.x = x;
         this.y = y;
-        
-        // Velocidad más suave
         const angle = Math.random() * Math.PI * 2;
-        const velocity = Math.random() * 4 + 1; // Menos explosivo, más elegante
-        
+        const velocity = Math.random() * 4 + 1;
         this.vx = Math.cos(angle) * velocity;
         this.vy = Math.sin(angle) * velocity;
-        
         this.friction = 0.96;
-        this.gravity = 0.05; // Gravedad reducida para efecto "flotante"
-        
-        // Selección de color aleatorio de la marca
+        this.gravity = 0.05;
         const color = brandColors[Math.floor(Math.random() * brandColors.length)];
-        this.hue = color.h + (Math.random() * 20 - 10); // Variación ligera
+        this.hue = color.h + (Math.random() * 20 - 10);
         this.sat = color.s;
         this.light = color.l;
-        
         this.alpha = 1;
         this.decay = Math.random() * 0.015 + 0.005;
-        this.size = Math.random() * 3 + 1; // Partículas redondas
+        this.size = Math.random() * 3 + 1;
       }
 
       update() {
         this.vx *= this.friction;
         this.vy *= this.friction;
         this.vy += this.gravity;
-        
         this.x += this.vx;
         this.y += this.vy;
-        
         this.alpha -= this.decay;
       }
 
       draw() {
         if (this.alpha <= 0) return;
-
-        // OPTIMIZACIÓN DE RENDIMIENTO (Performance Fix)
-        // Eliminamos shadowBlur y shadowColor porque causan lag en inputs.
-        // Simulamos el brillo dibujando un aura manual más rápida.
-
-        // 1. Dibujar el aura (Glow) - Círculo grande y transparente
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${this.hue}, ${this.sat}%, ${this.light}%, ${this.alpha * 0.2})`; // 20% opacidad
+        ctx.fillStyle = `hsla(${this.hue}, ${this.sat}%, ${this.light}%, ${this.alpha * 0.2})`;
         ctx.fill();
-
-        // 2. Dibujar el núcleo - Círculo pequeño y brillante
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fillStyle = `hsla(${this.hue}, ${this.sat}%, ${this.light}%, ${this.alpha})`;
@@ -244,15 +233,9 @@ const FireworksBackground = () => {
     };
 
     const loop = () => {
-      // TRUCO DE ESTELA TRANSPARENTE:
-      // En lugar de pintar un fondo negro semi-transparente,
-      // usamos 'destination-out' para borrar suavemente el canvas,
-      // revelando el gradiente CSS que está detrás.
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; // Controla la longitud de la estela
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
       ctx.fillRect(0, 0, width, height);
-
-      // Cambiamos a 'lighter' para que las partículas brillen al superponerse (efecto mágico)
       ctx.globalCompositeOperation = 'lighter';
 
       let i = particles.length;
@@ -265,10 +248,7 @@ const FireworksBackground = () => {
           p.draw();
         }
       }
-      
-      // Restaurar modo normal por si acaso
       ctx.globalCompositeOperation = 'source-over';
-      
       animationId = requestAnimationFrame(loop);
     };
 
@@ -281,7 +261,6 @@ const FireworksBackground = () => {
     window.addEventListener('mousemove', handleInteraction);
     window.addEventListener('mousedown', handleInteraction);
     window.addEventListener('touchstart', handleInteraction, { passive: false });
-    // Lanzar fuegos artificiales aleatorios al inicio para dar vida
     setTimeout(() => createExplosion(width/2, height/2, true), 500);
 
     loop();
@@ -331,13 +310,8 @@ const LoginScreen = () => {
   };
 
   return (
-    // CAMBIO AQUI: Fondo con Gradiente Premium de la marca
     <div className="min-h-screen bg-gradient-to-br from-[#1a103c] via-[#2e1a47] to-[#0a0514] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      
-      {/* Fondo de Fuegos Artificiales (Sobre el gradiente) */}
       <FireworksBackground />
-
-      {/* Título Estilizado Celestial */}
       <div className="absolute top-8 left-8 z-10 pointer-events-none hidden md:block">
         <h1 className="m-0 font-light tracking-[4px] uppercase text-2xl text-white/90 drop-shadow-md">
           Celestial Spark
@@ -348,7 +322,6 @@ const LoginScreen = () => {
       <div className="relative z-10 w-full max-w-sm animate-in fade-in zoom-in duration-500">
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-3xl shadow-2xl">
           <div className="mb-6 relative text-center">
-            {/* Logo Icon */}
             <div className="w-24 h-24 bg-gradient-to-tr from-rose-400 to-purple-600 rounded-full flex items-center justify-center p-1 shadow-2xl mx-auto animate-bounce-slow mb-4">
                <div className="w-full h-full bg-white rounded-full overflow-hidden flex items-center justify-center">
                   <img src={LOGO_URL} alt="Logo" className="w-20 h-20 object-contain" />
@@ -456,9 +429,7 @@ export default function App() {
   const [editingItem, setEditingItem] = useState(null);
   const [viewingOrderEvent, setViewingOrderEvent] = useState(null); 
 
-  // --- EFECTOS VISUALES (Favicon y Título) ---
   useEffect(() => {
-    // 1. Configurar Favicon dinámicamente
     const setFavicon = (url) => {
       let link = document.querySelector("link[rel~='icon']");
       if (!link) {
@@ -470,13 +441,10 @@ export default function App() {
     };
     
     setFavicon(LOGO_URL);
-
-    // 2. Configurar Título de la página
     document.title = "Eventos Luzcecitas | Gestión";
   }, []);
 
   // --- AUTH & DATA SYNC ---
-
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -507,8 +475,6 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-
-    // Use dynamic appId for paths
     const basePath = ['artifacts', appId, 'users', user.uid];
     
     const unsubClients = onSnapshot(collection(db, ...basePath, 'clients'), (snapshot) => {
@@ -547,10 +513,8 @@ export default function App() {
       inThreeDays.setHours(23,59,59,999);
 
       const imminentEvents = events.filter(e => {
-        const eventDate = new Date(e.date);
-        const [y, m, d] = e.date.split('-').map(Number);
-        const localEventDate = new Date(y, m - 1, d);
-        
+        // Uso de getLocalDate para evitar errores de zona horaria
+        const localEventDate = getLocalDate(e.date);
         return localEventDate >= today && localEventDate <= inThreeDays && e.status !== 'completado' && e.status !== 'cancelado';
       });
 
@@ -561,15 +525,12 @@ export default function App() {
     }
   }, [events, user]);
 
-
-  // --- DERIVED DATA ---
-
   const upcomingEvents = useMemo(() => {
     const today = new Date();
     today.setHours(0,0,0,0);
     return events
-      .filter(e => new Date(e.date) >= today)
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
+      .filter(e => getLocalDate(e.date) >= today)
+      .sort((a, b) => getLocalDate(a.date) - getLocalDate(b.date));
   }, [events]);
 
   const financialStats = useMemo(() => {
@@ -589,8 +550,6 @@ export default function App() {
     });
     return { income, expenses, profit: income - expenses, transportExpenses };
   }, [transactions]);
-
-  // --- HELPERS FOR AVAILABILITY ---
 
   const getUsedQuantityOnDate = (date, itemId, excludeEventId = null) => {
     if (!date) return 0;
@@ -661,41 +620,58 @@ export default function App() {
     e.preventDefault();
     if (!user) return;
     const formData = new FormData(e.target);
-    const clientId = formData.get('clientId');
-    const selectedClient = clients.find(c => c.id === clientId);
-
-    const customItems = {};
-    inventory.filter(i => i.type === 'retornable').forEach(item => {
-      const val = Number(formData.get(`inv_${item.id}`));
-      if (val > 0) customItems[item.id] = val;
-    });
-
-    const data = {
-      title: formData.get('title'),
-      date: formData.get('date'),
-      time: formData.get('time'),
-      clientId: clientId,
-      clientName: selectedClient?.name || 'Desconocido',
-      address: formData.get('address'),
-      status: formData.get('status'),
-      items: {
-        millos: formData.get('millos') === 'on',
-        algodon: formData.get('algodon') === 'on',
-        raspados: formData.get('raspados') === 'on',
-      },
-      customItems: customItems,
-      totalCost: Number(formData.get('totalCost') || 0),
-      notes: formData.get('notes'),
-      // New Logistics Fields
-      logistics: {
-        loaded: formData.get('logistics_loaded') === 'on',
-        delivered: formData.get('logistics_delivered') === 'on',
-        pickedUp: formData.get('logistics_pickedUp') === 'on',
-      },
-      createdAt: serverTimestamp()
-    };
+    
+    let clientId = formData.get('clientId');
+    let clientName = '';
+    const isNewClientMode = formData.get('isNewClient') === 'on';
 
     try {
+      if (isNewClientMode) {
+        const newClientData = {
+          name: formData.get('newClientName'),
+          phone: formData.get('newClientPhone'),
+          address: formData.get('address'),
+          type: 'cliente',
+          createdAt: serverTimestamp()
+        };
+        const clientRef = await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'clients'), newClientData);
+        clientId = clientRef.id;
+        clientName = newClientData.name;
+      } else {
+        const selectedClient = clients.find(c => c.id === clientId);
+        clientName = selectedClient?.name || 'Desconocido';
+      }
+
+      const customItems = {};
+      inventory.filter(i => i.type === 'retornable').forEach(item => {
+        const val = Number(formData.get(`inv_${item.id}`));
+        if (val > 0) customItems[item.id] = val;
+      });
+
+      const data = {
+        title: formData.get('title'),
+        date: formData.get('date'),
+        time: formData.get('time'),
+        clientId: clientId,
+        clientName: clientName,
+        address: formData.get('address'),
+        status: formData.get('status'),
+        items: {
+          millos: formData.get('millos') === 'on',
+          algodon: formData.get('algodon') === 'on',
+          raspados: formData.get('raspados') === 'on',
+        },
+        customItems: customItems,
+        totalCost: Number(formData.get('totalCost') || 0),
+        notes: formData.get('notes'),
+        logistics: {
+          loaded: formData.get('logistics_loaded') === 'on',
+          delivered: formData.get('logistics_delivered') === 'on',
+          pickedUp: formData.get('logistics_pickedUp') === 'on',
+        },
+        createdAt: serverTimestamp()
+      };
+
       if (editingEvent) {
         await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'events', editingEvent.id), data);
       } else {
@@ -713,8 +689,9 @@ export default function App() {
       }
       setShowEventModal(false);
       setEditingEvent(null);
+
     } catch (error) {
-      console.error("Error saving event:", error);
+      console.error("Error saving event/client:", error);
     }
   };
 
@@ -814,6 +791,15 @@ export default function App() {
 
   const DashboardView = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* Action Bar */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-purple-900">Resumen General</h2>
+        <Button onClick={() => { setEditingEvent(null); setShowEventModal(true); }} className="shadow-rose-300">
+           <Plus className="w-5 h-5"/> Crear Celebración
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Colorful Gradient Cards */}
         <Card className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 text-white border-none shadow-purple-200">
@@ -863,10 +849,16 @@ export default function App() {
           {upcomingEvents.length === 0 ? (
             <div className="col-span-full p-8 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200">
               <p className="text-gray-400 italic">¡La agenda está libre! Es hora de buscar más fiestas.</p>
+              <Button variant="secondary" onClick={() => setShowEventModal(true)} className="mt-4 mx-auto">
+                <Plus className="w-4 h-4"/> Agendar Primera Fiesta
+              </Button>
             </div>
           ) : (
             upcomingEvents.slice(0, 3).map(event => {
               const client = clients.find(c => c.id === event.clientId);
+              // Fix: Asegurar fecha correcta visualmente
+              const visualDate = getLocalDate(event.date);
+
               return (
                 <div key={event.id} className="bg-white p-5 rounded-2xl border border-purple-100 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 relative">
                   <div className="flex justify-between items-start mb-3">
@@ -879,12 +871,11 @@ export default function App() {
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 mb-2 flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4 text-rose-400" /> {new Date(event.date).toLocaleDateString()}
+                    <CalendarIcon className="w-4 h-4 text-rose-400" /> {visualDate.toLocaleDateString()}
                     <span className="text-gray-300">|</span> 
                     {event.time}
                   </p>
                   
-                  {/* Dirección y Botón Cómo Llegar */}
                   <div className="mb-3">
                     <div className="flex items-start gap-2 text-sm text-gray-600 mb-2">
                        <MapPin className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" /> 
@@ -938,8 +929,9 @@ export default function App() {
     const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
     const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
     
+    // Fix: Comparación de fechas segura con getLocalDate
     const monthEvents = events.filter(e => {
-      const d = new Date(e.date);
+      const d = getLocalDate(e.date);
       return d.getMonth() === currentDate.getMonth() && d.getFullYear() === currentDate.getFullYear();
     });
 
@@ -948,7 +940,7 @@ export default function App() {
     };
 
     const getDayEvents = (day) => {
-      return monthEvents.filter(e => new Date(e.date).getDate() === day);
+      return monthEvents.filter(e => getLocalDate(e.date).getDate() === day);
     };
 
     return (
@@ -998,12 +990,17 @@ export default function App() {
                 <button 
                   onClick={() => {
                      setEditingEvent(null);
+                     // Hack para pre-llenar fecha en modal
                      setTimeout(() => {
-                       const dateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toISOString().split('T')[0];
+                       const year = currentDate.getFullYear();
+                       const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                       const dayStr = String(day).padStart(2, '0');
+                       const dateStr = `${year}-${month}-${dayStr}`;
+                       
                        const dateInput = document.querySelector('input[name="date"]');
                        if (dateInput) { 
                            dateInput.value = dateStr;
-                           const event = new Event('change', { bubbles: true });
+                           const event = new Event('input', { bubbles: true }); // Change 'change' to 'input' for better react handling
                            dateInput.dispatchEvent(event);
                        }
                      }, 100);
@@ -1085,7 +1082,6 @@ export default function App() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                         {/* WhatsApp Button */}
                         <button 
                           onClick={() => openWhatsApp(client.phone)}
                           className="p-1.5 rounded-lg text-green-500 hover:text-green-700 hover:bg-green-50 transition-all border border-transparent hover:border-green-200"
@@ -1133,7 +1129,6 @@ export default function App() {
               <TrendingDown className="w-5 h-5" /> ${financialStats.expenses.toFixed(2)}
             </h2>
           </Card>
-           {/* Nueva Card para Transporte */}
            <Card className="bg-blue-50 border-blue-100">
             <p className="text-blue-600 font-bold mb-1">Transporte</p>
             <h2 className="text-2xl font-extrabold text-blue-700 flex items-center gap-2">
@@ -1223,8 +1218,38 @@ export default function App() {
   };
 
   const EventFormContent = () => {
-    const [selectedDate, setSelectedDate] = useState(editingEvent?.date || new Date().toISOString().split('T')[0]);
+    // FIX: Estado para controlar modo de creación de cliente
+    const [isNewClient, setIsNewClient] = useState(false);
+    
+    // FIX: Manejo controlado de fecha para evitar pérdida de datos
+    const [selectedDate, setSelectedDate] = useState(editingEvent?.date || getTodayString());
+    
+    // DUPLICATE CHECK LOGIC
+    const [selectedClientId, setSelectedClientId] = useState(editingEvent?.clientId || '');
+    const [duplicateClient, setDuplicateClient] = useState(null);
+
     const handleDateChange = (e) => setSelectedDate(e.target.value);
+    
+    // Al escribir un teléfono, buscar si ya existe
+    const handlePhoneChange = (e) => {
+        const val = e.target.value;
+        if (val.length > 5) { 
+             const cleanVal = val.replace(/\D/g, '');
+             const match = clients.find(c => c.phone && c.phone.replace(/\D/g, '').includes(cleanVal));
+             setDuplicateClient(match || null);
+        } else {
+             setDuplicateClient(null);
+        }
+    };
+
+    const handleUseExisting = () => {
+        if (duplicateClient) {
+            setSelectedClientId(duplicateClient.id);
+            setIsNewClient(false);
+            setDuplicateClient(null);
+        }
+    };
+    
     const client = clients.find(c => c.id === editingEvent?.clientId);
 
     return (
@@ -1257,16 +1282,100 @@ export default function App() {
           <Input name="time" label="Hora" type="time" defaultValue={editingEvent?.time} required />
         </div>
         
-        <Select 
-          name="clientId" 
-          label="Cliente" 
-          value={editingEvent?.clientId} 
-          options={[
-            { value: '', label: 'Seleccionar Cliente...' },
-            ...clients.map(c => ({ value: c.id, label: c.name }))
-          ]} 
-          required
-        />
+        {/* FIX: Selección de Cliente o Creación de Nuevo */}
+        <div className="p-4 bg-purple-50 rounded-xl border border-purple-100 mb-4 transition-all">
+           <div className="flex justify-between items-center mb-3">
+              <label className="text-sm font-bold text-purple-900 flex items-center gap-2">
+                 <Users className="w-4 h-4"/> Datos del Cliente
+              </label>
+              
+              {!isNewClient ? (
+                 <button 
+                   type="button" 
+                   onClick={() => setIsNewClient(true)}
+                   className="text-xs bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg font-bold hover:bg-rose-200 flex items-center gap-1 transition-colors"
+                 >
+                    <UserPlus className="w-3 h-3"/> Crear Nuevo
+                 </button>
+              ) : (
+                 <button 
+                   type="button" 
+                   onClick={() => { setIsNewClient(false); setDuplicateClient(null); }}
+                   className="text-xs bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-bold hover:bg-gray-300 transition-colors"
+                 >
+                    Cancelar
+                 </button>
+              )}
+              
+              <input type="hidden" name="isNewClient" value={isNewClient ? 'on' : 'off'} />
+           </div>
+
+           {isNewClient ? (
+              <div className="space-y-3 animate-in fade-in slide-in-from-top-2 bg-white p-3 rounded-lg border border-rose-100 shadow-inner">
+                 <Input name="newClientName" label="Nombre Cliente Nuevo" placeholder="Nombre completo" required />
+                 
+                 <div className="relative">
+                    <Input 
+                        name="newClientPhone" 
+                        label="Teléfono (Detecta Duplicados)" 
+                        placeholder="Celular" 
+                        onChange={handlePhoneChange}
+                        required 
+                    />
+                    
+                    {/* ALERT BOX FOR DUPLICATE */}
+                    {duplicateClient && (
+                        <div className="absolute top-16 left-0 right-0 z-10 animate-in zoom-in duration-200">
+                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 shadow-lg flex items-center justify-between gap-3">
+                                 <div>
+                                     <p className="text-xs font-bold text-amber-800 flex items-center gap-1">
+                                         <AlertTriangle className="w-3 h-3"/> ¡Cliente encontrado!
+                                     </p>
+                                     <p className="text-xs text-amber-700">
+                                         {duplicateClient.name} ya está registrado con este número.
+                                     </p>
+                                 </div>
+                                 <button 
+                                    type="button"
+                                    onClick={handleUseExisting}
+                                    className="bg-amber-200 hover:bg-amber-300 text-amber-900 text-xs px-3 py-2 rounded-lg font-bold flex-shrink-0 flex items-center gap-1"
+                                 >
+                                    Usar este <ArrowRightCircle className="w-3 h-3"/>
+                                 </button>
+                             </div>
+                        </div>
+                    )}
+                 </div>
+                 
+                 <p className="text-xs text-gray-400 italic text-center pt-2">* Se guardará automáticamente en la lista de clientes</p>
+              </div>
+           ) : (
+              <div className="animate-in fade-in">
+                  <Select 
+                    name="clientId" 
+                    label="Seleccionar Cliente Existente" 
+                    value={selectedClientId}
+                    onChange={(e) => setSelectedClientId(e.target.value)}
+                    options={[
+                      { value: '', label: 'Seleccionar Cliente...' },
+                      ...clients.map(c => ({ value: c.id, label: c.name }))
+                    ]} 
+                    required={!isNewClient}
+                  />
+                  
+                  {/* Quick Info Preview */}
+                  {selectedClientId && (
+                      <div className="bg-purple-100/50 p-2 rounded-lg flex items-center gap-2 text-xs text-purple-700">
+                          <CheckCircle className="w-3 h-3"/> 
+                          Cliente seleccionado: 
+                          <span className="font-bold">
+                              {clients.find(c => c.id === selectedClientId)?.name}
+                          </span>
+                      </div>
+                  )}
+              </div>
+           )}
+        </div>
 
         <div className="relative">
            <Input name="address" label="Dirección del Evento" placeholder="Lugar de la fiesta" defaultValue={editingEvent?.address} required />
@@ -1277,7 +1386,6 @@ export default function App() {
            )}
         </div>
 
-        {/* Dynamic Inventory Section */}
         <div className="p-5 bg-purple-50 rounded-2xl space-y-4 border border-purple-100">
            <h4 className="font-bold text-purple-900 text-sm flex items-center gap-2">
              <ClipboardList className="w-4 h-4 text-rose-500"/> Alquiler de Equipos y Stock
@@ -1334,7 +1442,6 @@ export default function App() {
            </div>
         </div>
         
-        {/* Logistics Section */}
         <div className="p-4 bg-gray-100 rounded-2xl border border-gray-200">
            <h4 className="font-bold text-gray-700 text-sm flex items-center gap-2 mb-3">
              <CheckSquare className="w-4 h-4 text-gray-500"/> Logística y Entrega
@@ -1376,7 +1483,6 @@ export default function App() {
     );
   };
 
-  // --- SERVICE ORDER CONTENT (For Modal) ---
   const ServiceOrderContent = ({ event }) => {
     if (!event) return null;
     const client = clients.find(c => c.id === event.clientId);
@@ -1417,12 +1523,10 @@ export default function App() {
             <div className="mt-4">
                <span className="font-bold block border-b border-black mb-2">EQUIPOS Y MOBILIARIO:</span>
                <ul className="list-disc pl-5 space-y-1">
-                  {/* Custom Items */}
                   {event.customItems && Object.entries(event.customItems).map(([id, qty]) => {
                      const item = inventory.find(i => i.id === id);
                      return item ? <li key={id}>{qty} x {item.name}</li> : null;
                   })}
-                  {/* Machines */}
                   {event.items?.millos && <li>1 x Máquina de Millos</li>}
                   {event.items?.algodon && <li>1 x Máquina de Algodón</li>}
                   {event.items?.raspados && <li>1 x Máquina de Raspados</li>}
@@ -1666,7 +1770,7 @@ export default function App() {
                    <div>
                      <h4 className="font-bold text-red-800 text-sm">{event.title}</h4>
                      <p className="text-xs text-red-600 flex gap-2 mt-1">
-                       <CalendarIcon className="w-3 h-3"/> {new Date(event.date).toLocaleDateString()}
+                       <CalendarIcon className="w-3 h-3"/> {getLocalDate(event.date).toLocaleDateString()}
                        <span className="font-bold">|</span> {event.time}
                      </p>
                      <p className="text-xs text-red-600 mt-1">{event.address}</p>
