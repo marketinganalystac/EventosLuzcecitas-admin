@@ -30,7 +30,8 @@ import {
   ExternalLink,
   MessageCircle,
   CheckSquare,
-  LogIn 
+  LogIn,
+  Navigation // Importamos un ícono más específico para navegación si está disponible, sino usamos ExternalLink
 } from 'lucide-react';
 
 // Firebase Imports
@@ -83,6 +84,7 @@ const openWhatsApp = (phone) => {
 
 const openMaps = (address) => {
   if (!address) return;
+  // Usamos google maps search query que mostrará el pin y la opción de "Cómo llegar" ahí mismo
   window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank');
 };
 
@@ -882,11 +884,21 @@ export default function App() {
                     {event.time}
                   </p>
                   
-                  {/* GPS Link */}
-                  <div className="text-sm text-gray-600 mb-2 flex items-start gap-2 group cursor-pointer" onClick={() => openMaps(event.address)}>
-                    <MapPin className="w-4 h-4 text-rose-400 mt-0.5 group-hover:text-rose-600" /> 
-                    <span className="group-hover:text-rose-600 group-hover:underline">{event.address}</span>
-                    <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  {/* Dirección y Botón Cómo Llegar */}
+                  <div className="mb-3">
+                    <div className="flex items-start gap-2 text-sm text-gray-600 mb-2">
+                       <MapPin className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" /> 
+                       <span className="leading-tight">{event.address}</span>
+                    </div>
+                    
+                    {event.address && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); openMaps(event.address); }}
+                        className="ml-6 flex items-center gap-2 text-xs font-bold text-white bg-blue-500 hover:bg-blue-600 px-3 py-1.5 rounded-lg shadow-sm transition-all transform active:scale-95"
+                      >
+                        <ExternalLink className="w-3 h-3" /> Cómo llegar
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2 mt-3 mb-4">
