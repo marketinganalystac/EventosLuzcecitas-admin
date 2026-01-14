@@ -216,19 +216,21 @@ const FireworksBackground = () => {
       draw() {
         if (this.alpha <= 0) return;
 
+        // OPTIMIZACIÓN DE RENDIMIENTO (Performance Fix)
+        // Eliminamos shadowBlur y shadowColor porque causan lag en inputs.
+        // Simulamos el brillo dibujando un aura manual más rápida.
+
+        // 1. Dibujar el aura (Glow) - Círculo grande y transparente
         ctx.beginPath();
-        // Dibujar círculos en lugar de líneas para aspecto "Premium"
+        ctx.arc(this.x, this.y, this.size * 3, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${this.hue}, ${this.sat}%, ${this.light}%, ${this.alpha * 0.2})`; // 20% opacidad
+        ctx.fill();
+
+        // 2. Dibujar el núcleo - Círculo pequeño y brillante
+        ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fillStyle = `hsla(${this.hue}, ${this.sat}%, ${this.light}%, ${this.alpha})`;
-        
-        // Efecto Glow instantáneo
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = `hsla(${this.hue}, ${this.sat}%, ${this.light}%, ${this.alpha})`;
-        
         ctx.fill();
-        
-        // Reset shadow para rendimiento si es necesario, pero aquí se ve bien
-        ctx.shadowBlur = 0;
       }
     }
 
