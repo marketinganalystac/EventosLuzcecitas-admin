@@ -33,7 +33,9 @@ import {
   LogIn,
   UserPlus,
   Search,
-  ArrowRightCircle
+  ArrowRightCircle,
+  Briefcase,
+  Layers
 } from 'lucide-react';
 
 // Firebase Imports
@@ -89,14 +91,12 @@ const openMaps = (address) => {
   window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank');
 };
 
-// Helper para fechas locales (Evita error de día -1 por timezone)
 const getLocalDate = (dateString) => {
   if (!dateString) return new Date();
   const [y, m, d] = dateString.split('-').map(Number);
   return new Date(y, m - 1, d);
 };
 
-// Helper para obtener string de fecha local HOY para inputs (YYYY-MM-DD)
 const getTodayString = () => {
     const d = new Date();
     const offset = d.getTimezoneOffset() * 60000;
@@ -420,6 +420,7 @@ export default function App() {
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showInventoryModal, setShowInventoryModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false); 
+  const [showLogisticsModal, setShowLogisticsModal] = useState(false);
   const [urgentAlerts, setUrgentAlerts] = useState([]); 
   const [showUrgentModal, setShowUrgentModal] = useState(false);
   
@@ -648,6 +649,10 @@ export default function App() {
         if (val > 0) customItems[item.id] = val;
       });
 
+      // Nuevos campos de Pagos
+      const totalCost = Number(formData.get('totalCost') || 0);
+      const deposit = Number(formData.get('deposit') || 0);
+
       const data = {
         title: formData.get('title'),
         date: formData.get('date'),
@@ -662,7 +667,10 @@ export default function App() {
           raspados: formData.get('raspados') === 'on',
         },
         customItems: customItems,
-        totalCost: Number(formData.get('totalCost') || 0),
+        totalCost: totalCost,
+        deposit: deposit,
+        // Calculate balance automatically
+        balance: totalCost - deposit,
         notes: formData.get('notes'),
         logistics: {
           loaded: formData.get('logistics_loaded') === 'on',
@@ -676,11 +684,13 @@ export default function App() {
         await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'events', editingEvent.id), data);
       } else {
         const docRef = await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'events'), data);
-        if (data.status === 'confirmado' && data.totalCost > 0) {
+        
+        // Auto-crear transacción si hay Abono
+        if (deposit > 0) {
            await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'transactions'), {
              type: 'income',
-             amount: data.totalCost,
-             description: `Evento: ${data.title}`,
+             amount: deposit,
+             description: `Abono Evento: ${data.title}`,
              date: data.date,
              eventId: docRef.id,
              category: 'Servicios'
@@ -793,11 +803,16 @@ export default function App() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       {/* Action Bar */}
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-4 gap-2">
         <h2 className="text-2xl font-bold text-purple-900">Resumen General</h2>
-        <Button onClick={() => { setEditingEvent(null); setShowEventModal(true); }} className="shadow-rose-300">
-           <Plus className="w-5 h-5"/> Crear Celebración
-        </Button>
+        <div className="flex gap-2">
+           <Button onClick={() => setShowLogisticsModal(true)} variant="secondary" className="shadow-sm">
+              <Truck className="w-5 h-5"/> Logística Diaria
+           </Button>
+           <Button onClick={() => { setEditingEvent(null); setShowEventModal(true); }} className="shadow-rose-300">
+              <Plus className="w-5 h-5"/> Crear Celebración
+           </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -856,14 +871,14 @@ export default function App() {
           ) : (
             upcomingEvents.slice(0, 3).map(event => {
               const client = clients.find(c => c.id === event.clientId);
-              // Fix: Asegurar fecha correcta visualmente
               const visualDate = getLocalDate(event.date);
+              const pendingBalance = event.totalCost - (event.deposit || 0);
 
               return (
-                <div key={event.id} className="bg-white p-5 rounded-2xl border border-purple-100 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 relative">
+                <div key={event.id} className="bg-white p-5 rounded-2xl border border-purple-100 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 relative group">
                   <div className="flex justify-between items-start mb-3">
-                    <h4 className="font-bold text-purple-900 text-lg">{event.title}</h4>
-                    <span className={`text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wider ${
+                    <h4 className="font-bold text-purple-900 text-lg truncate pr-2">{event.title}</h4>
+                    <span className={`text-xs px-2 py-1 rounded-full font-bold uppercase tracking-wider flex-shrink-0 ${
                       event.status === 'confirmado' ? 'bg-green-100 text-green-700' : 
                       event.status === 'pendiente' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'
                     }`}>
@@ -879,28 +894,28 @@ export default function App() {
                   <div className="mb-3">
                     <div className="flex items-start gap-2 text-sm text-gray-600 mb-2">
                        <MapPin className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" /> 
-                       <span className="leading-tight">{event.address}</span>
+                       <span className="leading-tight truncate">{event.address}</span>
                     </div>
-                    
-                    {event.address && (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); openMaps(event.address); }}
-                        className="ml-6 flex items-center gap-2 text-xs font-bold text-white bg-blue-500 hover:bg-blue-600 px-3 py-1.5 rounded-lg shadow-sm transition-all transform active:scale-95"
-                      >
-                        <ExternalLink className="w-3 h-3" /> Cómo llegar
-                      </button>
-                    )}
                   </div>
 
-                  <div className="flex flex-wrap gap-2 mt-3 mb-4">
-                    {event.customItems && Object.entries(event.customItems).map(([id, qty]) => {
-                      const item = inventory.find(i => i.id === id);
-                      return item ? <span key={id} className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-md font-medium border border-purple-100">{qty} {item.name}</span> : null;
-                    })}
+                  {/* Payment Status Bar */}
+                  <div className="mb-4 bg-gray-50 rounded-lg p-2 border border-gray-100">
+                     <div className="flex justify-between items-end mb-1">
+                        <span className="text-xs font-bold text-gray-500">Estado de Pago</span>
+                        <span className={`text-xs font-bold ${pendingBalance > 0 ? 'text-rose-500' : 'text-green-600'}`}>
+                           {pendingBalance > 0 ? `Deben: $${pendingBalance}` : '¡Pagado!'}
+                        </span>
+                     </div>
+                     <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                           className={`h-full ${pendingBalance <= 0 ? 'bg-green-500' : 'bg-yellow-400'}`} 
+                           style={{ width: `${Math.min(100, ((event.deposit || 0) / event.totalCost) * 100)}%` }}
+                        ></div>
+                     </div>
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="border-t border-purple-50 pt-3 flex justify-between items-center">
+                  <div className="border-t border-purple-50 pt-3 flex justify-between items-center opacity-100">
                     <button 
                       onClick={() => { setViewingOrderEvent(event); setShowOrderModal(true); }}
                       className="text-xs flex items-center gap-1 font-bold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2 py-1.5 rounded-lg transition-colors"
@@ -1217,6 +1232,82 @@ export default function App() {
     );
   };
 
+  // --- LOGISTICS MODAL CONTENT ---
+  const LogisticsModalContent = () => {
+    const [logisticsDate, setLogisticsDate] = useState(getTodayString());
+
+    const eventsForDate = events.filter(e => e.date === logisticsDate && e.status !== 'cancelado');
+    
+    // Aggregate items
+    const summary = {};
+    eventsForDate.forEach(e => {
+        if(e.customItems) {
+            Object.entries(e.customItems).forEach(([itemId, qty]) => {
+                const item = inventory.find(i => i.id === itemId);
+                const itemName = item ? item.name : 'Item Desconocido';
+                summary[itemName] = (summary[itemName] || 0) + qty;
+            });
+        }
+        if(e.items?.millos) summary['Máq. Millos'] = (summary['Máq. Millos'] || 0) + 1;
+        if(e.items?.algodon) summary['Máq. Algodón'] = (summary['Máq. Algodón'] || 0) + 1;
+        if(e.items?.raspados) summary['Máq. Raspados'] = (summary['Máq. Raspados'] || 0) + 1;
+    });
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <Input 
+                   name="logisticsDate" 
+                   label="Seleccionar Fecha de Ruta" 
+                   type="date" 
+                   value={logisticsDate} 
+                   onChange={(e) => setLogisticsDate(e.target.value)} 
+                />
+                <p className="text-sm text-blue-600 text-center font-bold">
+                    {eventsForDate.length} Eventos programados para este día.
+                </p>
+            </div>
+
+            {eventsForDate.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Lista Agregada (Warehouse Pick List) */}
+                    <div className="bg-white p-4 rounded-xl border border-purple-100 shadow-sm">
+                        <h4 className="font-bold text-purple-900 mb-3 flex items-center gap-2 border-b pb-2">
+                           <Layers className="w-4 h-4"/> Total Carga (Bodega)
+                        </h4>
+                        <ul className="space-y-2">
+                            {Object.entries(summary).map(([name, qty]) => (
+                                <li key={name} className="flex justify-between text-sm">
+                                    <span className="text-gray-600">{name}</span>
+                                    <span className="font-bold text-purple-700 bg-purple-50 px-2 rounded-md">{qty}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    {/* Detalle por Evento */}
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                        <h4 className="font-bold text-gray-700 mb-2 text-sm">Detalle de Ruta</h4>
+                        {eventsForDate.map(e => (
+                             <div key={e.id} className="bg-gray-50 p-3 rounded-lg text-xs border border-gray-100">
+                                 <div className="font-bold text-purple-800">{e.time} - {e.title}</div>
+                                 <div className="text-gray-500 mb-1">{e.address}</div>
+                                 <div className="flex gap-1 flex-wrap">
+                                     {e.logistics?.loaded ? <span className="bg-green-100 text-green-700 px-1 rounded">Cargado</span> : <span className="bg-red-100 text-red-700 px-1 rounded">Pendiente Carga</span>}
+                                 </div>
+                             </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div className="text-center py-8 text-gray-400">
+                    <p>No hay eventos registrados para esta fecha.</p>
+                </div>
+            )}
+        </div>
+    );
+  };
+
   const EventFormContent = () => {
     // FIX: Estado para controlar modo de creación de cliente
     const [isNewClient, setIsNewClient] = useState(false);
@@ -1227,6 +1318,12 @@ export default function App() {
     // DUPLICATE CHECK LOGIC
     const [selectedClientId, setSelectedClientId] = useState(editingEvent?.clientId || '');
     const [duplicateClient, setDuplicateClient] = useState(null);
+
+    // FINANCIAL LOGIC
+    const [totalCost, setTotalCost] = useState(editingEvent?.totalCost || 0);
+    const [deposit, setDeposit] = useState(editingEvent?.deposit || 0);
+    
+    const balance = totalCost - deposit;
 
     const handleDateChange = (e) => setSelectedDate(e.target.value);
     
@@ -1250,10 +1347,26 @@ export default function App() {
         }
     };
     
+    // --- PACKS HELPERS (New Feature) ---
+    // Usamos refs para manipular los inputs del DOM directamente de forma sencilla
+    const formRef = useRef(null);
+
+    const applyPack = (items) => {
+        if(!formRef.current) return;
+        
+        // Reset basic fields
+        Object.keys(items).forEach(key => {
+            const input = formRef.current.querySelector(`input[name="inv_${key}"]`);
+            if(input) input.value = items[key];
+        });
+        
+        alert("¡Pack aplicado! Verifica las cantidades.");
+    };
+
     const client = clients.find(c => c.id === editingEvent?.clientId);
 
     return (
-      <form onSubmit={handleSaveEvent} className="space-y-4">
+      <form ref={formRef} onSubmit={handleSaveEvent} className="space-y-4">
         {/* Actions Header in Edit Mode */}
         {editingEvent && (
            <div className="flex gap-2 mb-4">
@@ -1387,9 +1500,18 @@ export default function App() {
         </div>
 
         <div className="p-5 bg-purple-50 rounded-2xl space-y-4 border border-purple-100">
-           <h4 className="font-bold text-purple-900 text-sm flex items-center gap-2">
-             <ClipboardList className="w-4 h-4 text-rose-500"/> Alquiler de Equipos y Stock
-           </h4>
+           <div className="flex justify-between items-center">
+               <h4 className="font-bold text-purple-900 text-sm flex items-center gap-2">
+                 <ClipboardList className="w-4 h-4 text-rose-500"/> Alquiler de Equipos
+               </h4>
+               
+               {/* --- QUICK PACKS BUTTONS --- */}
+               <div className="flex gap-1">
+                   <button type="button" onClick={() => alert('Configura tus IDs de items primero en el código')} className="text-[10px] bg-white border border-purple-200 text-purple-600 px-2 py-1 rounded hover:bg-purple-50 transition-colors">
+                      ⚡ Packs Rápidos (Proximamente)
+                   </button>
+               </div>
+           </div>
            
            {inventory.filter(i => i.type === 'retornable').length > 0 ? (
              <div className="grid grid-cols-1 gap-3">
@@ -1462,18 +1584,47 @@ export default function App() {
            </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="bg-purple-900/5 p-4 rounded-xl border border-purple-200">
+            <h4 className="font-bold text-purple-900 text-sm mb-3 flex items-center gap-2">
+                <DollarSign className="w-4 h-4"/> Gestión de Pagos
+            </h4>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <Input 
+                  name="totalCost" 
+                  label="Costo Total ($)" 
+                  type="number" 
+                  step="0.01" 
+                  value={totalCost}
+                  onChange={(e) => setTotalCost(Number(e.target.value))}
+                  required 
+              />
+              <Input 
+                  name="deposit" 
+                  label="Abono / Seña ($)" 
+                  type="number" 
+                  step="0.01" 
+                  value={deposit}
+                  onChange={(e) => setDeposit(Number(e.target.value))}
+              />
+            </div>
+            
+            <div className={`mt-2 p-3 rounded-lg text-center font-bold text-lg border-2 ${balance > 0 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
+                {balance > 0 ? `Saldo Pendiente: $${balance.toFixed(2)}` : '¡PAGADO COMPLETO!'}
+            </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
           <Select 
             name="status" 
-            label="Estado" 
+            label="Estado del Evento" 
             options={[
-              { value: 'pendiente', label: 'Pendiente' },
-              { value: 'confirmado', label: 'Confirmado' },
-              { value: 'completado', label: 'Completado' }
+              { value: 'pendiente', label: '🟡 Pendiente' },
+              { value: 'confirmado', label: '🟢 Confirmado' },
+              { value: 'completado', label: '⚪ Completado' }
             ]}
             defaultValue={editingEvent?.status || 'pendiente'}
           />
-          <Input name="totalCost" label="Costo Total ($)" type="number" step="0.01" defaultValue={editingEvent?.totalCost} required />
         </div>
 
         <div className="pt-2">
@@ -1486,6 +1637,8 @@ export default function App() {
   const ServiceOrderContent = ({ event }) => {
     if (!event) return null;
     const client = clients.find(c => c.id === event.clientId);
+    const balance = event.totalCost - (event.deposit || 0);
+
     return (
       <div className="bg-white p-6 border-2 border-gray-800 text-black max-w-md mx-auto">
          <div className="text-center border-b-2 border-black pb-4 mb-4">
@@ -1531,6 +1684,22 @@ export default function App() {
                   {event.items?.algodon && <li>1 x Máquina de Algodón</li>}
                   {event.items?.raspados && <li>1 x Máquina de Raspados</li>}
                </ul>
+            </div>
+            
+            {/* Payment Info Section - Improved */}
+            <div className="mt-6 border border-black p-3">
+               <div className="flex justify-between mb-1">
+                  <span>Total Evento:</span>
+                  <span className="font-bold">${event.totalCost?.toFixed(2)}</span>
+               </div>
+               <div className="flex justify-between mb-1 text-gray-600">
+                  <span>Abono Recibido:</span>
+                  <span>-${event.deposit?.toFixed(2) || '0.00'}</span>
+               </div>
+               <div className="flex justify-between border-t border-black pt-1 mt-1 text-lg">
+                  <span className="font-black">RESTA PAGAR:</span>
+                  <span className="font-black">${balance?.toFixed(2)}</span>
+               </div>
             </div>
             
             <div className="mt-8 border-t-2 border-dashed border-gray-400 pt-4">
@@ -1738,6 +1907,18 @@ export default function App() {
             <Button type="submit" className="w-full">Registrar</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* NEW: LOGISTICS MODAL */}
+      <Modal 
+        isOpen={showLogisticsModal} 
+        onClose={() => setShowLogisticsModal(false)} 
+        title="Gestión de Ruta y Carga"
+      >
+         <LogisticsModalContent />
+         <div className="mt-4 flex justify-center">
+            <Button variant="secondary" onClick={() => setShowLogisticsModal(false)}>Cerrar</Button>
+         </div>
       </Modal>
 
       {/* NEW: SERVICE ORDER MODAL */}
