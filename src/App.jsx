@@ -319,9 +319,9 @@ const LoginScreen = () => {
       <FireworksBackground />
       <div className="absolute top-8 left-8 z-10 pointer-events-none hidden md:block">
         <h1 className="m-0 font-light tracking-[4px] uppercase text-2xl text-white/90 drop-shadow-md">
-          Celestial Spark
+          
         </h1>
-        <p className="text-purple-200/60 text-sm mt-1">Desliza para pintar el cielo</p>
+        <p className="text-purple-200/60 text-sm mt-1"></p>
       </div>
 
       <div className="relative z-10 w-full max-w-sm animate-in fade-in zoom-in duration-500">
