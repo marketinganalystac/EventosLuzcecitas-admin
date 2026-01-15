@@ -35,7 +35,9 @@ import {
   Search,
   ArrowRightCircle,
   Briefcase,
-  Layers
+  Layers,
+  ShoppingBag,
+  CreditCard
 } from 'lucide-react';
 
 // Firebase Imports
@@ -55,7 +57,10 @@ import {
   deleteDoc, 
   doc, 
   onSnapshot, 
-  serverTimestamp 
+  serverTimestamp,
+  query,
+  where,
+  getDocs
 } from "firebase/firestore";
 
 // --- CONFIGURACIÓN FIREBASE (DINÁMICA) ---
@@ -514,7 +519,6 @@ export default function App() {
       inThreeDays.setHours(23,59,59,999);
 
       const imminentEvents = events.filter(e => {
-        // Uso de getLocalDate para evitar errores de zona horaria
         const localEventDate = getLocalDate(e.date);
         return localEventDate >= today && localEventDate <= inThreeDays && e.status !== 'completado' && e.status !== 'cancelado';
       });
@@ -538,6 +542,7 @@ export default function App() {
     let income = 0;
     let expenses = 0;
     let transportExpenses = 0;
+    let receivables = 0; // Cuentas por cobrar
 
     transactions.forEach(t => {
       const amount = Number(t.amount);
@@ -549,8 +554,16 @@ export default function App() {
         }
       }
     });
-    return { income, expenses, profit: income - expenses, transportExpenses };
-  }, [transactions]);
+
+    events.forEach(e => {
+      if (e.status !== 'cancelado') {
+        const debt = (e.totalCost || 0) - (e.deposit || 0);
+        if (debt > 0) receivables += debt;
+      }
+    });
+
+    return { income, expenses, profit: income - expenses, transportExpenses, receivables };
+  }, [transactions, events]);
 
   const getUsedQuantityOnDate = (date, itemId, excludeEventId = null) => {
     if (!date) return 0;
@@ -564,6 +577,45 @@ export default function App() {
   };
 
   // --- HANDLERS ---
+
+  const handleInitializeInventory = async () => {
+    if (!user) return;
+    const itemsToAdd = [
+      { name: "Silla Plástica", type: "retornable", unit: "Unidades", totalQuantity: 50 },
+      { name: "Mesa Rectangular", type: "retornable", unit: "Unidades", totalQuantity: 10 },
+      { name: "Mesa Redonda", type: "retornable", unit: "Unidades", totalQuantity: 10 },
+      { name: "Maíz Pira (Bolsa 1kg)", type: "consumible", unit: "Kg", totalQuantity: 20 },
+      { name: "Aceite Cocina (Litro)", type: "consumible", unit: "L", totalQuantity: 10 },
+      { name: "Sal de Millo", type: "consumible", unit: "Kg", totalQuantity: 5 },
+      { name: "Bolsas de Papel Millos (Paq 50)", type: "consumible", unit: "Paq", totalQuantity: 30 },
+      { name: "Azúcar (Kg)", type: "consumible", unit: "Kg", totalQuantity: 20 },
+      { name: "Palitos Algodón (Paq 100)", type: "consumible", unit: "Paq", totalQuantity: 10 },
+      { name: "Colorante Algodón", type: "consumible", unit: "Frasco", totalQuantity: 5 },
+      { name: "Sirope (Sabor Variado)", type: "consumible", unit: "Litro", totalQuantity: 10 },
+      { name: "Vasos Raspado (Paq 50)", type: "consumible", unit: "Paq", totalQuantity: 20 },
+      { name: "Cucharas Plásticas", type: "consumible", unit: "Caja", totalQuantity: 5 },
+      { name: "Leche Condensada", type: "consumible", unit: "Lata", totalQuantity: 10 },
+      { name: "Hielo (Bolsa)", type: "consumible", unit: "Bolsa", totalQuantity: 0 }
+    ];
+
+    try {
+      const batchPromises = itemsToAdd.map(async (item) => {
+        // Simple check based on name to avoid duplicates
+        const exists = inventory.some(inv => inv.name.toLowerCase() === item.name.toLowerCase());
+        if (!exists) {
+           await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'inventory'), {
+             ...item,
+             minStock: 5,
+             updatedAt: serverTimestamp()
+           });
+        }
+      });
+      await Promise.all(batchPromises);
+      alert("¡Inventario base cargado con éxito! Revisa las cantidades.");
+    } catch (error) {
+      console.error("Error initializing inventory:", error);
+    }
+  };
 
   const handleSaveInventory = async (e) => {
     e.preventDefault();
@@ -599,7 +651,7 @@ export default function App() {
       name: formData.get('name'),
       phone: formData.get('phone'),
       email: formData.get('email'),
-      type: formData.get('type'),
+      status: formData.get('status'), // Nuevo campo status en lugar de type
       address: formData.get('address'),
       createdAt: serverTimestamp()
     };
@@ -632,7 +684,7 @@ export default function App() {
           name: formData.get('newClientName'),
           phone: formData.get('newClientPhone'),
           address: formData.get('address'),
-          type: 'cliente',
+          status: 'facturado', // Asumimos cliente nuevo como facturado si se crea desde evento
           createdAt: serverTimestamp()
         };
         const clientRef = await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'clients'), newClientData);
@@ -643,13 +695,20 @@ export default function App() {
         clientName = selectedClient?.name || 'Desconocido';
       }
 
+      // Collect all inventory inputs dynamically
       const customItems = {};
-      inventory.filter(i => i.type === 'retornable').forEach(item => {
-        const val = Number(formData.get(`inv_${item.id}`));
-        if (val > 0) customItems[item.id] = val;
-      });
+      
+      // Iterate over all form keys to find inventory items
+      for (const [key, value] of formData.entries()) {
+        if (key.startsWith('inv_')) {
+          const quantity = Number(value);
+          if (quantity > 0) {
+            const itemId = key.replace('inv_', '');
+            customItems[itemId] = quantity;
+          }
+        }
+      }
 
-      // Nuevos campos de Pagos
       const totalCost = Number(formData.get('totalCost') || 0);
       const deposit = Number(formData.get('deposit') || 0);
 
@@ -661,17 +720,17 @@ export default function App() {
         clientName: clientName,
         address: formData.get('address'),
         status: formData.get('status'),
-        items: {
-          millos: formData.get('millos') === 'on',
-          algodon: formData.get('algodon') === 'on',
-          raspados: formData.get('raspados') === 'on',
+        // Services toggles
+        services: {
+          millos: formData.get('service_millos') === 'on',
+          algodon: formData.get('service_algodon') === 'on',
+          raspados: formData.get('service_raspados') === 'on',
+          equipos: formData.get('service_equipos') === 'on', // Nuevo servicio opcional
         },
         customItems: customItems,
         totalCost: totalCost,
         deposit: deposit,
-        // Calculate balance automatically
         balance: totalCost - deposit,
-        notes: formData.get('notes'),
         logistics: {
           loaded: formData.get('logistics_loaded') === 'on',
           delivered: formData.get('logistics_delivered') === 'on',
@@ -685,7 +744,6 @@ export default function App() {
       } else {
         const docRef = await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'events'), data);
         
-        // Auto-crear transacción si hay Abono
         if (deposit > 0) {
            await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'transactions'), {
              type: 'income',
@@ -738,13 +796,18 @@ export default function App() {
   const InventoryView = () => {
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <h3 className="text-xl font-bold text-purple-900 flex items-center gap-2">
             <ClipboardList className="w-6 h-6 text-rose-500" /> Inventario de Fiesta
           </h3>
-          <Button onClick={() => { setEditingItem(null); setShowInventoryModal(true); }}>
-            <Plus className="w-4 h-4" /> Nuevo Item
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={handleInitializeInventory} className="text-xs">
+              ⚡ Cargar Insumos Base
+            </Button>
+            <Button onClick={() => { setEditingItem(null); setShowInventoryModal(true); }}>
+              <Plus className="w-4 h-4" /> Nuevo Item
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -773,14 +836,17 @@ export default function App() {
 
           <Card className="border-t-4 border-t-orange-400">
             <h4 className="font-bold text-purple-800 mb-4 flex items-center gap-2 text-lg">
-              <Box className="w-5 h-5 text-orange-500" /> Materia Prima (Consumibles)
+              <Box className="w-5 h-5 text-orange-500" /> Materia Prima / Combos
             </h4>
             <div className="space-y-3">
-              {inventory.filter(i => i.type === 'consumible').length === 0 && <p className="text-sm text-gray-500 italic">No hay materia prima registrada (ej. Maíz, Azúcar).</p>}
-              {inventory.filter(i => i.type === 'consumible').map(item => (
+              {inventory.filter(i => i.type === 'consumible' || i.type === 'combo').length === 0 && <p className="text-sm text-gray-500 italic">No hay materia prima registrada.</p>}
+              {inventory.filter(i => i.type === 'consumible' || i.type === 'combo').map(item => (
                 <div key={item.id} className="flex justify-between items-center p-4 bg-orange-50 rounded-xl border border-orange-100 hover:shadow-md transition-shadow">
                   <div>
-                    <div className="font-bold text-gray-800">{item.name}</div>
+                    <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-800">{item.name}</span>
+                        {item.type === 'combo' && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1 rounded border border-indigo-200">COMBO</span>}
+                    </div>
                     <div className={`text-xs mt-1 px-2 py-1 rounded-full inline-block font-bold ${item.totalQuantity <= item.minStock ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
                       {item.totalQuantity} {item.unit}
                       {item.totalQuantity <= item.minStock && " (Bajo)"}
@@ -844,13 +910,13 @@ export default function App() {
         <Card className="bg-gradient-to-br from-amber-400 to-orange-500 text-white border-none shadow-orange-200">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-orange-100 mb-1 font-medium">Alertas de Stock</p>
+              <p className="text-orange-100 mb-1 font-medium">Por Cobrar</p>
               <h2 className="text-4xl font-extrabold text-white drop-shadow-sm">
-                {inventory.filter(i => i.type === 'consumible' && i.totalQuantity <= i.minStock).length}
+                ${financialStats.receivables.toFixed(2)}
               </h2>
             </div>
             <div className="bg-white/20 p-3 rounded-full">
-               <AlertTriangle className="w-8 h-8 text-white" />
+               <CreditCard className="w-8 h-8 text-white" />
             </div>
           </div>
         </Card>
@@ -1015,7 +1081,7 @@ export default function App() {
                        const dateInput = document.querySelector('input[name="date"]');
                        if (dateInput) { 
                            dateInput.value = dateStr;
-                           const event = new Event('input', { bubbles: true }); // Change 'change' to 'input' for better react handling
+                           const event = new Event('input', { bubbles: true });
                            dateInput.dispatchEvent(event);
                        }
                      }, 100);
@@ -1036,23 +1102,31 @@ export default function App() {
   const ClientsView = () => {
     const [filter, setFilter] = useState('todos');
     
-    const filteredClients = clients.filter(c => 
-      filter === 'todos' ? true : c.type === filter
-    );
+    // Filtro simplificado: Todos, Cliente (Facturado), Solo Cotizando
+    const filteredClients = clients.filter(c => {
+      if (filter === 'todos') return true;
+      if (filter === 'facturado') return c.status === 'facturado' || c.type === 'cliente'; // soporte legacy type
+      if (filter === 'cotizando') return c.status === 'cotizando' || c.type === 'prospecto'; // soporte legacy type
+      return true;
+    });
 
     return (
       <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex gap-2 bg-white p-1.5 rounded-xl border border-purple-100 shadow-sm">
-            {['todos', 'cliente', 'prospecto'].map(f => (
+            {[
+              { id: 'todos', label: 'Todos' },
+              { id: 'facturado', label: 'Facturados' },
+              { id: 'cotizando', label: 'Solo Cotizando' }
+            ].map(f => (
               <button
-                key={f}
-                onClick={() => setFilter(f)}
+                key={f.id}
+                onClick={() => setFilter(f.id)}
                 className={`px-4 py-2 rounded-lg text-sm font-bold capitalize transition-all ${
-                  filter === f ? 'bg-purple-100 text-purple-700 shadow-sm' : 'text-gray-400 hover:text-purple-600'
+                  filter === f.id ? 'bg-purple-100 text-purple-700 shadow-sm' : 'text-gray-400 hover:text-purple-600'
                 }`}
               >
-                {f}s
+                {f.label}
               </button>
             ))}
           </div>
@@ -1068,7 +1142,7 @@ export default function App() {
                 <tr>
                   <th className="px-6 py-4 text-xs font-bold text-purple-400 uppercase tracking-wider">Nombre</th>
                   <th className="px-6 py-4 text-xs font-bold text-purple-400 uppercase tracking-wider">Contacto</th>
-                  <th className="px-6 py-4 text-xs font-bold text-purple-400 uppercase tracking-wider">Tipo</th>
+                  <th className="px-6 py-4 text-xs font-bold text-purple-400 uppercase tracking-wider">Estado</th>
                   <th className="px-6 py-4 text-xs font-bold text-purple-400 uppercase tracking-wider">Dirección</th>
                   <th className="px-6 py-4 text-xs font-bold text-purple-400 uppercase tracking-wider text-right">Acciones</th>
                 </tr>
@@ -1087,9 +1161,11 @@ export default function App() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize border ${
-                        client.type === 'cliente' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'
+                        client.status === 'facturado' || client.type === 'cliente' 
+                        ? 'bg-green-50 text-green-700 border-green-200' 
+                        : 'bg-amber-50 text-amber-700 border-amber-200'
                       }`}>
-                        {client.type}
+                        {client.status === 'facturado' || client.type === 'cliente' ? 'Facturado' : 'Cotizando'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 truncate max-w-[200px]">
@@ -1133,7 +1209,7 @@ export default function App() {
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-emerald-50 border-emerald-100">
-            <p className="text-emerald-600 font-bold mb-1">Ingresos</p>
+            <p className="text-emerald-600 font-bold mb-1">Ingresos Reales</p>
             <h2 className="text-2xl font-extrabold text-emerald-700 flex items-center gap-2">
               <TrendingUp className="w-5 h-5" /> ${financialStats.income.toFixed(2)}
             </h2>
@@ -1144,10 +1220,10 @@ export default function App() {
               <TrendingDown className="w-5 h-5" /> ${financialStats.expenses.toFixed(2)}
             </h2>
           </Card>
-           <Card className="bg-blue-50 border-blue-100">
-            <p className="text-blue-600 font-bold mb-1">Transporte</p>
-            <h2 className="text-2xl font-extrabold text-blue-700 flex items-center gap-2">
-              <Truck className="w-5 h-5" /> ${financialStats.transportExpenses.toFixed(2)}
+           <Card className="bg-orange-50 border-orange-100">
+            <p className="text-orange-600 font-bold mb-1">Cuentas por Cobrar</p>
+            <h2 className="text-2xl font-extrabold text-orange-700 flex items-center gap-2">
+              <CreditCard className="w-5 h-5" /> ${financialStats.receivables.toFixed(2)}
             </h2>
           </Card>
           <Card className="bg-purple-50 border-purple-100">
@@ -1232,7 +1308,6 @@ export default function App() {
     );
   };
 
-  // --- LOGISTICS MODAL CONTENT ---
   const LogisticsModalContent = () => {
     const [logisticsDate, setLogisticsDate] = useState(getTodayString());
 
@@ -1248,9 +1323,9 @@ export default function App() {
                 summary[itemName] = (summary[itemName] || 0) + qty;
             });
         }
-        if(e.items?.millos) summary['Máq. Millos'] = (summary['Máq. Millos'] || 0) + 1;
-        if(e.items?.algodon) summary['Máq. Algodón'] = (summary['Máq. Algodón'] || 0) + 1;
-        if(e.items?.raspados) summary['Máq. Raspados'] = (summary['Máq. Raspados'] || 0) + 1;
+        if(e.services?.millos) summary['Máq. Millos'] = (summary['Máq. Millos'] || 0) + 1;
+        if(e.services?.algodon) summary['Máq. Algodón'] = (summary['Máq. Algodón'] || 0) + 1;
+        if(e.services?.raspados) summary['Máq. Raspados'] = (summary['Máq. Raspados'] || 0) + 1;
     });
 
     return (
@@ -1311,23 +1386,22 @@ export default function App() {
   const EventFormContent = () => {
     // FIX: Estado para controlar modo de creación de cliente
     const [isNewClient, setIsNewClient] = useState(false);
-    
-    // FIX: Manejo controlado de fecha para evitar pérdida de datos
     const [selectedDate, setSelectedDate] = useState(editingEvent?.date || getTodayString());
-    
-    // DUPLICATE CHECK LOGIC
     const [selectedClientId, setSelectedClientId] = useState(editingEvent?.clientId || '');
     const [duplicateClient, setDuplicateClient] = useState(null);
-
-    // FINANCIAL LOGIC
     const [totalCost, setTotalCost] = useState(editingEvent?.totalCost || 0);
     const [deposit, setDeposit] = useState(editingEvent?.deposit || 0);
     
+    // Service Toggles State
+    const [showMillos, setShowMillos] = useState(editingEvent?.services?.millos || false);
+    const [showAlgodon, setShowAlgodon] = useState(editingEvent?.services?.algodon || false);
+    const [showRaspados, setShowRaspados] = useState(editingEvent?.services?.raspados || false);
+    const [showEquipos, setShowEquipos] = useState(editingEvent?.services?.equipos || false);
+
     const balance = totalCost - deposit;
 
     const handleDateChange = (e) => setSelectedDate(e.target.value);
     
-    // Al escribir un teléfono, buscar si ya existe
     const handlePhoneChange = (e) => {
         const val = e.target.value;
         if (val.length > 5) { 
@@ -1347,26 +1421,55 @@ export default function App() {
         }
     };
     
-    // --- PACKS HELPERS (New Feature) ---
-    // Usamos refs para manipular los inputs del DOM directamente de forma sencilla
-    const formRef = useRef(null);
-
-    const applyPack = (items) => {
-        if(!formRef.current) return;
-        
-        // Reset basic fields
-        Object.keys(items).forEach(key => {
-            const input = formRef.current.querySelector(`input[name="inv_${key}"]`);
-            if(input) input.value = items[key];
-        });
-        
-        alert("¡Pack aplicado! Verifica las cantidades.");
-    };
-
     const client = clients.find(c => c.id === editingEvent?.clientId);
 
+    // --- SUB-COMPONENT FOR RESOURCE SELECTION ---
+    const ResourceSelector = ({ title, keywords, typeFilter }) => {
+        const relevantItems = inventory.filter(item => {
+            if (typeFilter && item.type !== typeFilter) return false;
+            if (!keywords || keywords.length === 0) return true;
+            const nameLower = item.name.toLowerCase();
+            return keywords.some(k => nameLower.includes(k));
+        });
+
+        // Add a "Show All Consumables" fallback if strict keyword filtering yields nothing but we want to allow choices
+        const displayItems = relevantItems.length > 0 ? relevantItems : inventory.filter(i => i.type === 'consumible');
+
+        if (displayItems.length === 0) return <p className="text-xs text-gray-400 italic p-2">No hay insumos disponibles. Ve a inventario y carga insumos base.</p>;
+
+        return (
+            <div className="mt-2 bg-purple-50/50 p-3 rounded-lg border border-purple-100 animate-in fade-in slide-in-from-top-1">
+                <p className="text-xs font-bold text-purple-800 mb-2 flex items-center gap-1">
+                   <Box className="w-3 h-3"/> Materia Prima del Stock:
+                </p>
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    {displayItems.map(item => {
+                        const currentVal = editingEvent?.customItems?.[item.id] || 0;
+                        const available = item.totalQuantity; // Simplified view
+                        return (
+                            <div key={item.id} className="flex justify-between items-center text-sm gap-2">
+                                <span className="text-gray-600 truncate flex-1" title={item.name}>{item.name}</span>
+                                <div className="flex items-center gap-1">
+                                    <input 
+                                        type="number" 
+                                        name={`inv_${item.id}`} 
+                                        defaultValue={currentVal} 
+                                        min="0"
+                                        className="w-16 p-1 border rounded text-right text-xs" 
+                                        placeholder="0"
+                                    />
+                                    <span className="text-[10px] text-gray-400 w-8 text-right">{item.unit}</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
     return (
-      <form ref={formRef} onSubmit={handleSaveEvent} className="space-y-4">
+      <form onSubmit={handleSaveEvent} className="space-y-4">
         {/* Actions Header in Edit Mode */}
         {editingEvent && (
            <div className="flex gap-2 mb-4">
@@ -1395,7 +1498,7 @@ export default function App() {
           <Input name="time" label="Hora" type="time" defaultValue={editingEvent?.time} required />
         </div>
         
-        {/* FIX: Selección de Cliente o Creación de Nuevo */}
+        {/* Cliente Selection Logic */}
         <div className="p-4 bg-purple-50 rounded-xl border border-purple-100 mb-4 transition-all">
            <div className="flex justify-between items-center mb-3">
               <label className="text-sm font-bold text-purple-900 flex items-center gap-2">
@@ -1475,18 +1578,7 @@ export default function App() {
                     ]} 
                     required={!isNewClient}
                   />
-                  
-                  {/* Quick Info Preview */}
-                  {selectedClientId && (
-                      <div className="bg-purple-100/50 p-2 rounded-lg flex items-center gap-2 text-xs text-purple-700">
-                          <CheckCircle className="w-3 h-3"/> 
-                          Cliente seleccionado: 
-                          <span className="font-bold">
-                              {clients.find(c => c.id === selectedClientId)?.name}
-                          </span>
-                      </div>
-                  )}
-              </div>
+               </div>
            )}
         </div>
 
@@ -1499,68 +1591,105 @@ export default function App() {
            )}
         </div>
 
-        <div className="p-5 bg-purple-50 rounded-2xl space-y-4 border border-purple-100">
-           <div className="flex justify-between items-center">
-               <h4 className="font-bold text-purple-900 text-sm flex items-center gap-2">
-                 <ClipboardList className="w-4 h-4 text-rose-500"/> Alquiler de Equipos
-               </h4>
-               
-               {/* --- QUICK PACKS BUTTONS --- */}
-               <div className="flex gap-1">
-                   <button type="button" onClick={() => alert('Configura tus IDs de items primero en el código')} className="text-[10px] bg-white border border-purple-200 text-purple-600 px-2 py-1 rounded hover:bg-purple-50 transition-colors">
-                      ⚡ Packs Rápidos (Proximamente)
-                   </button>
-               </div>
-           </div>
+        {/* --- SERVICE SELECTION AREA --- */}
+        <div className="p-5 bg-white rounded-2xl space-y-4 border border-purple-200 shadow-sm">
+           <h4 className="font-bold text-purple-900 text-sm flex items-center gap-2 border-b border-purple-100 pb-2">
+             <Sparkles className="w-4 h-4 text-rose-500"/> Servicios y Consumo
+           </h4>
            
-           {inventory.filter(i => i.type === 'retornable').length > 0 ? (
-             <div className="grid grid-cols-1 gap-3">
-               {inventory.filter(i => i.type === 'retornable').map(item => {
-                 const used = getUsedQuantityOnDate(selectedDate, item.id, editingEvent?.id);
-                 const available = item.totalQuantity - used;
-                 const currentVal = editingEvent?.customItems?.[item.id] || 0;
-                 
-                 return (
-                   <div key={item.id} className="bg-white p-3 rounded-xl border border-purple-100 shadow-sm">
-                     <div className="flex justify-between mb-2">
-                       <label className="text-sm font-bold text-gray-700">{item.name}</label>
-                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${available <= 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                         Disp: {available} / {item.totalQuantity}
-                       </span>
-                     </div>
-                     <input 
-                       name={`inv_${item.id}`} 
-                       type="number" 
-                       min="0" 
-                       max={available + currentVal}
-                       defaultValue={currentVal}
-                       className="w-full border-2 border-purple-100 rounded-lg p-2 focus:border-rose-400 focus:outline-none"
-                     />
-                     {available <= 0 && <p className="text-xs text-red-500 mt-1 font-medium">¡Sin disponibilidad para esta fecha!</p>}
+           {/* ALQUILER DE EQUIPOS */}
+           <div className={`rounded-xl border transition-all duration-300 ${showEquipos ? 'bg-purple-50 border-purple-200 shadow-md' : 'bg-white border-gray-100'}`}>
+               <label className="flex items-center justify-between p-3 cursor-pointer">
+                   <div className="flex items-center gap-3">
+                       <input 
+                           name="service_equipos" 
+                           type="checkbox" 
+                           checked={showEquipos}
+                           onChange={(e) => setShowEquipos(e.target.checked)}
+                           className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500" 
+                        />
+                       <span className="font-bold text-gray-700">🪑 Alquiler de Mobiliario/Equipos</span>
                    </div>
-                 );
-               })}
-             </div>
-           ) : (
-             <p className="text-xs text-gray-500 text-center py-2">Agrega sillas y mesas en la pestaña "Inventario" para verlos aquí.</p>
-           )}
+                   {showEquipos && <span className="text-xs bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full font-bold">Activo</span>}
+               </label>
+               
+               {showEquipos && (
+                   <div className="px-3 pb-3 animate-in slide-in-from-top-2">
+                       <ResourceSelector title="Mobiliario a Entregar" typeFilter="retornable" />
+                   </div>
+               )}
+           </div>
 
-           <div className="border-t border-purple-200 pt-3">
-             <p className="text-xs text-purple-900 mb-3 font-bold uppercase tracking-wide">Máquinas Festivas</p>
-             <div className="space-y-2">
-                <label className="flex items-center gap-3 p-2 bg-white rounded-lg border border-purple-100 cursor-pointer hover:bg-yellow-50 transition-colors">
-                   <input name="millos" type="checkbox" defaultChecked={editingEvent?.items?.millos} className="w-4 h-4 text-rose-500 rounded focus:ring-rose-500" />
-                   <span className="text-sm font-medium text-gray-700">🍿 Máquina de Millos</span>
-                </label>
-                <label className="flex items-center gap-3 p-2 bg-white rounded-lg border border-purple-100 cursor-pointer hover:bg-pink-50 transition-colors">
-                   <input name="algodon" type="checkbox" defaultChecked={editingEvent?.items?.algodon} className="w-4 h-4 text-rose-500 rounded focus:ring-rose-500" />
-                   <span className="text-sm font-medium text-gray-700">🍭 Máquina de Algodón</span>
-                </label>
-                <label className="flex items-center gap-3 p-2 bg-white rounded-lg border border-purple-100 cursor-pointer hover:bg-blue-50 transition-colors">
-                   <input name="raspados" type="checkbox" defaultChecked={editingEvent?.items?.raspados} className="w-4 h-4 text-rose-500 rounded focus:ring-rose-500" />
-                   <span className="text-sm font-medium text-gray-700">🍧 Máquina de Raspados</span>
-                </label>
-             </div>
+           {/* MÁQUINA DE MILLOS */}
+           <div className={`rounded-xl border transition-all duration-300 ${showMillos ? 'bg-yellow-50 border-yellow-200 shadow-md' : 'bg-white border-gray-100'}`}>
+               <label className="flex items-center justify-between p-3 cursor-pointer">
+                   <div className="flex items-center gap-3">
+                       <input 
+                           name="service_millos" 
+                           type="checkbox" 
+                           checked={showMillos}
+                           onChange={(e) => setShowMillos(e.target.checked)}
+                           className="w-5 h-5 text-yellow-600 rounded focus:ring-yellow-500" 
+                        />
+                       <span className="font-bold text-gray-700">🍿 Máquina de Millos</span>
+                   </div>
+                   {showMillos && <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded-full font-bold">Activo</span>}
+               </label>
+               
+               {showMillos && (
+                   <div className="px-3 pb-3 animate-in slide-in-from-top-2">
+                       <div className="p-2 text-xs text-yellow-800 bg-yellow-100/50 rounded mb-2">
+                           Selecciona la cantidad de insumos (bolsas, maíz, aceite) a descontar del stock.
+                       </div>
+                       <ResourceSelector title="Insumos Millos" keywords={['maiz', 'maíz', 'aceite', 'sal', 'bolsa', 'millos', 'caja']} typeFilter="consumible" />
+                   </div>
+               )}
+           </div>
+
+           {/* MÁQUINA DE ALGODÓN */}
+           <div className={`rounded-xl border transition-all duration-300 ${showAlgodon ? 'bg-pink-50 border-pink-200 shadow-md' : 'bg-white border-gray-100'}`}>
+               <label className="flex items-center justify-between p-3 cursor-pointer">
+                   <div className="flex items-center gap-3">
+                       <input 
+                           name="service_algodon" 
+                           type="checkbox" 
+                           checked={showAlgodon}
+                           onChange={(e) => setShowAlgodon(e.target.checked)}
+                           className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500" 
+                        />
+                       <span className="font-bold text-gray-700">🍭 Máquina de Algodón</span>
+                   </div>
+                   {showAlgodon && <span className="text-xs bg-pink-200 text-pink-800 px-2 py-0.5 rounded-full font-bold">Activo</span>}
+               </label>
+               
+               {showAlgodon && (
+                   <div className="px-3 pb-3 animate-in slide-in-from-top-2">
+                       <ResourceSelector title="Insumos Algodón" keywords={['azucar', 'azúcar', 'palo', 'cono', 'colorante']} typeFilter="consumible" />
+                   </div>
+               )}
+           </div>
+
+           {/* MÁQUINA DE RASPADOS */}
+           <div className={`rounded-xl border transition-all duration-300 ${showRaspados ? 'bg-blue-50 border-blue-200 shadow-md' : 'bg-white border-gray-100'}`}>
+               <label className="flex items-center justify-between p-3 cursor-pointer">
+                   <div className="flex items-center gap-3">
+                       <input 
+                           name="service_raspados" 
+                           type="checkbox" 
+                           checked={showRaspados}
+                           onChange={(e) => setShowRaspados(e.target.checked)}
+                           className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" 
+                        />
+                       <span className="font-bold text-gray-700">🍧 Máquina de Raspados</span>
+                   </div>
+                   {showRaspados && <span className="text-xs bg-blue-200 text-blue-800 px-2 py-0.5 rounded-full font-bold">Activo</span>}
+               </label>
+               
+               {showRaspados && (
+                   <div className="px-3 pb-3 animate-in slide-in-from-top-2">
+                       <ResourceSelector title="Insumos Raspados" keywords={['hielo', 'sirope', 'vaso', 'cuchara', 'leche']} typeFilter="consumible" />
+                   </div>
+               )}
            </div>
         </div>
         
@@ -1674,19 +1803,20 @@ export default function App() {
             </div>
 
             <div className="mt-4">
-               <span className="font-bold block border-b border-black mb-2">EQUIPOS Y MOBILIARIO:</span>
+               <span className="font-bold block border-b border-black mb-2">EQUIPOS Y SERVICIOS:</span>
                <ul className="list-disc pl-5 space-y-1">
+                  {event.services?.millos && <li>Máquina de Millos (Insumos incl.)</li>}
+                  {event.services?.algodon && <li>Máquina de Algodón (Insumos incl.)</li>}
+                  {event.services?.raspados && <li>Máquina de Raspados (Insumos incl.)</li>}
+                  
                   {event.customItems && Object.entries(event.customItems).map(([id, qty]) => {
                      const item = inventory.find(i => i.id === id);
-                     return item ? <li key={id}>{qty} x {item.name}</li> : null;
+                     // Solo mostrar equipos retornables en la lista pública, los insumos son internos
+                     return (item && item.type === 'retornable') ? <li key={id}>{qty} x {item.name}</li> : null;
                   })}
-                  {event.items?.millos && <li>1 x Máquina de Millos</li>}
-                  {event.items?.algodon && <li>1 x Máquina de Algodón</li>}
-                  {event.items?.raspados && <li>1 x Máquina de Raspados</li>}
                </ul>
             </div>
             
-            {/* Payment Info Section - Improved */}
             <div className="mt-6 border border-black p-3">
                <div className="flex justify-between mb-1">
                   <span>Total Evento:</span>
@@ -1839,8 +1969,9 @@ export default function App() {
             label="Tipo de Recurso" 
             defaultValue={editingItem?.type || 'retornable'}
             options={[
-              { value: 'retornable', label: 'Retornable (Sillas, Mesas)' },
-              { value: 'consumible', label: 'Consumible (Maíz, Azúcar)' }
+              { value: 'retornable', label: 'Retornable (Equipos)' },
+              { value: 'consumible', label: 'Consumible (Materia Prima)' },
+              { value: 'combo', label: 'Combo / Paquete' }
             ]}
           />
           <Input name="minStock" label="Alerta de Stock Mínimo" type="number" defaultValue={editingItem?.minStock || 5} />
@@ -1860,13 +1991,13 @@ export default function App() {
           <Input name="phone" label="Teléfono" placeholder="6xxx-xxxx" defaultValue={editingClient?.phone} required />
           <Input name="email" label="Correo Electrónico" type="email" placeholder="cliente@email.com" defaultValue={editingClient?.email} />
           <Select 
-            name="type" 
-            label="Tipo" 
+            name="status" 
+            label="Estado del Cliente" 
             options={[
-              { value: 'cliente', label: 'Cliente (Ya compró)' },
-              { value: 'prospecto', label: 'Prospecto (Interesado)' }
+              { value: 'cotizando', label: 'Solo Cotizando' },
+              { value: 'facturado', label: 'Facturado / Cliente Formal' }
             ]}
-            defaultValue={editingClient?.type || 'prospecto'}
+            defaultValue={editingClient?.status || 'cotizando'}
           />
           <Input name="address" label="Dirección Principal" placeholder="Ciudad, Barrio..." defaultValue={editingClient?.address} />
           <div className="pt-2">
